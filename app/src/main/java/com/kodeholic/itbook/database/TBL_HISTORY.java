@@ -31,6 +31,7 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 	public static final String PRICE      = "_price";
 	public static final String IMAGE      = "_image";
 	public static final String URL        = "_url";
+	public static final String NOTE       = "_note";
 	public static final String CREATE_TIME= "_create_time";
 
 	public static final String CREATE = "CREATE TABLE IF NOT EXISTS " + TABLE_NAME + " " +
@@ -47,13 +48,14 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 			PRICE    + " TEXT, " +
 			IMAGE    + " TEXT, " +
 			URL      + " TEXT, " +
+			NOTE     + " TEXT, " +
 			CREATE_TIME + " INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP" +
 			");";
 
 	public static final String DROP = "DROP TABLE IF EXISTS " + TABLE_NAME;
 
 	private static class INDEX {
-		public int ISBN13, TITLE, SUBTITLE, AUTHORS, LANGUAGE, ISBN10, YEAR, RATING, DESC, PRICE, IMAGE, URL, CREATE_TIME;
+		public int ISBN13, TITLE, SUBTITLE, AUTHORS, LANGUAGE, ISBN10, YEAR, RATING, DESC, PRICE, IMAGE, URL, NOTE, CREATE_TIME;
 	}
 
 	private static INDEX cursorToIndex(Cursor c) throws Exception {
@@ -70,6 +72,7 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 		idx.PRICE   = c.getColumnIndex(PRICE);
 		idx.IMAGE   = c.getColumnIndex(IMAGE);
 		idx.URL     = c.getColumnIndex(URL);
+		idx.NOTE    = c.getColumnIndex(NOTE);
 		idx.CREATE_TIME = c.getColumnIndex(CREATE_TIME);
 
 		return idx;
@@ -94,6 +97,7 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 		values.put(PRICE   , o.getPrice());
 		values.put(IMAGE   , o.getImage());
 		values.put(URL     , o.getUrl());
+		values.put(NOTE    , o.getNote());
 
 		return values;
 	}
@@ -130,6 +134,7 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 		if (idx.PRICE    != -1) o.setPrice(c.getString(idx.PRICE));
 		if (idx.IMAGE    != -1) o.setImage(c.getString(idx.IMAGE));
 		if (idx.URL      != -1) o.setUrl(c.getString(idx.URL));
+		if (idx.NOTE    != -1) o.setNote(c.getString(idx.NOTE));
 
 		return o;
 	}
@@ -145,6 +150,19 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 
 		Log.d(TABLE_NAME, "addHistory() - insert!");
 		return insert(detail) > 0;
+	}
+
+	public boolean saveNote(String isbn13, String note, String f) {
+		Log.d(TABLE_NAME, "saveNote() - f: " + f + ", isbn13: " + isbn13 + ", note: " + note);
+		String sql =
+				"UPDATE " + TABLE_NAME
+						+ " SET "
+						+ NOTE + "='" + note + "'"
+						+ " WHERE " + ISBN13 + "=" + isbn13;
+		boolean ret = update_raw(sql);
+		Log.d(TABLE_NAME, "saveNote() ret: " + ret);
+
+		return ret;
 	}
 
 	public List<BookDetail> getList(Context context, String f) {

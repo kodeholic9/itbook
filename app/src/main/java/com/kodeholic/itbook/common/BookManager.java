@@ -25,6 +25,7 @@ import com.kodeholic.itbook.common.data.BookListRes;
 import com.kodeholic.itbook.ui.base.IBase;
 
 import java.lang.reflect.Array;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -181,13 +182,16 @@ public class BookManager {
 
     /**
      * 서버로 검색 요청을 한다.
-     * @param url
+     * @param queryString
+     * @param pageNo
      * @param listener
      * @param f
      * @return
      */
-    public BookApiInvoker search(String url, final Listener listener, String f) {
-        Log.d(TAG, "search() - f: " + f + ", url: " + url);
+    public BookApiInvoker search(String queryString, int pageNo, final Listener listener, String f) {
+        Log.d(TAG, "search() - f: " + f + ", queryString: " + queryString + ", pageNo: " + pageNo);
+
+        String url  = URL_SEARCH + "/" + getEncodedString(queryString) + "/" + pageNo;
 
         BookApiInvoker invoker = new BookApiInvoker(mContext);
         int result = invoker.invoke(GET_SEARCH, url, new HttpListener() {
@@ -350,13 +354,13 @@ public class BookManager {
     //
     ///////////////////////////////////////////////////////////////////////////
     public interface SearchListener {
-        public void onResult(BookListRes result);
+        public void onResult(Book[] result);
     }
 
     private List<Book> mSearchResult = new ArrayList<>();
     private String     mQueryString;
     private int        mPageNo = 0;
-    private int        mSearchTotal = 0;
+    private int        mSearchTotal = -1;
     private boolean    mSearchRequesting = false;
 
     /**
@@ -382,39 +386,31 @@ public class BookManager {
     }
 
     /**
-     * QueryString을 참조한다. (절대 NULL을 반환하지 않는다.)
-     * @return
-     */
-    private String getQueryString() {
-        synchronized (mSearchResult) {
-            return mQueryString != null ? mQueryString : "";
-        }
-    }
-
-    /**
-     * QueryString이 같은지 비교한다.
+     * URL-encoded format으로 변환한다.
      * @param queryString
      * @return
      */
-    private boolean checkMoreToSearch(String queryString, String f) {
-        Log.w(TAG, "checkMoreToSearch() - f: " + f + ", queryString: " + mQueryString + " --> " + queryString
-                + ", total: " + mSearchTotal
-                + ", size: " + mSearchResult.size());
-        synchronized (mSearchResult) {
-            if (mQueryString == null) {
-                mQueryString = queryString;
-                return false;
-            }
-            if (!mQueryString.equals(queryString)) {
-                mQueryString = queryString;
-                return false;
-            }
-            if (mSearchResult.size() == 0) {
-                return false;
-            }
+    private String getEncodedString(String queryString) {
+        try {
+            return URLEncoder.encode(queryString, "UTF-8");
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
 
-        return true;
+        return queryString;
+    }
+
+    /**
+     * 이전에 질의한 QueryString이 동일한지 체크
+     * @param newQueryString
+     * @return
+     */
+    public boolean equalsQueryString(String newQueryString) {
+        Log.d(TAG, "equalsQueryString() - old: " + mQueryString + ", new: " + newQueryString);
+        synchronized (mSearchResult) {
+            return newQueryString.equals(mQueryString);
+        }
     }
 
     /**
@@ -424,6 +420,13 @@ public class BookManager {
      * @param f
      */
     private void setSearchResult(int total, List<Book> result, String f) {
+        //로깅..
+        int newSize = mSearchResult.size() + (result != null ? result.size() : 0);
+        Log.w(TAG, "setSearchResult() - f: " + f
+                + ", total: " + mSearchTotal + " --> " + total
+                + ", size: " + mSearchResult.size() + " --> " + newSize
+        );
+
         int oldSize = mSearchResult.size();
         try {
             synchronized (mSearchResult) {
@@ -434,12 +437,6 @@ public class BookManager {
         catch (Exception e) {
             e.printStackTrace();
         }
-
-        //로깅..
-        Log.w(TAG, "setSearchResult() - f: " + f
-                + ", total: " + mSearchTotal + " --> " + total
-                + ", size: " + oldSize + " --> " + mSearchResult.size()
-        );
     }
 
     /**
@@ -448,8 +445,8 @@ public class BookManager {
     public void clearSearchResult() {
         synchronized (mSearchResult) {
             mSearchResult.clear();
-            mSearchTotal = 0;
-            mPageNo      = 1;
+            mPageNo      =  0;
+            mSearchTotal = -1;
         }
     }
 
@@ -467,74 +464,86 @@ public class BookManager {
      * 더 조회할 Search가 존재하는지 확인한다.
      * @return
      */
-    public boolean hasMoreToSearch() {
-        Log.d(TAG, "hasMoreToSearch() - searchTotal: " + mSearchTotal + ", searchCurrent: " + mSearchResult.size());
+    public boolean hasMoreToSearch(String f) {
+//        Log.d(TAG, "hasMoreToSearch() - f: " + f
+//                + ", total: " + mSearchTotal
+//                + ", size: " + mSearchResult.size());
         synchronized (mSearchResult) {
-            return (mSearchTotal > mSearchResult.size());
+            return (mSearchTotal == -1 || mSearchTotal > mSearchResult.size());
         }
     }
 
     /**
      * Search를 로드한다.
-     * @param query
+     * @param initFlag
+     * @param queryString
      * @param listener
      * @param f
      * @return
      */
-    public void loadSearch(String query, final SearchListener listener, String f) {
-        Log.d(TAG, "loadSearch() - f: " + f + ", query: " + query);
+    public void loadSearch(final boolean initFlag, final String queryString, final SearchListener listener, String f) {
+        Log.d(TAG, "loadSearch() - f: " + f + ", initFlag: " + initFlag + ", queryString: " + queryString);
+
+        //check if query string..
+        if (queryString == null) {
+            PopupManager.getInstance(mContext).showToast("Query string is empty!");
+            if (listener != null) {
+                listener.onResult(null);
+            }
+            MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch(1)");
+            return ;
+        }
+
+        //check if already loading
         synchronized (mSearchResult) {
             if (isSearchRequesting()) {
-                PopupManager.getInstance(mContext).showToast("Already Loading....");
                 if (listener != null) {
                     listener.onResult(null);
                 }
+                MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch(1)");
                 return ;
             }
             setSearchRequesting(true, "loadSearch");
+
+            //old를 보관한다.
+            mQueryString = queryString;
         }
 
-        final boolean moreToSearch = checkMoreToSearch(query, "loadSearch");
-        Log.d(TAG, "loadSearch() - moreToSearch: " + moreToSearch);
-
-        //이전 문자열과 같다면, more 수행
-        if (moreToSearch) {
-            //mPageNo += 1;
-        }
-        //이전 문자열과 다르다면, init 수행
-        else {
+        //check initFlag (initialize the searchResult..)
+        if (initFlag) {
             clearSearchResult();
         }
-
-        //URL을 생성한다.
-        final int page = moreToSearch ? mPageNo+1 : mPageNo;
-        final String url = URL_SEARCH + "/" + getQueryString() + "/" + page;
+        int pageNo = mPageNo + 1;
 
         //from cache and database
-        BookListRes result = SearchResultManager.getInstance(mContext).getBookListRes(url, "loadSearch");
-        if (result != null) {
-            setSearchRequesting(false, "loadSearch/cache");
+        boolean found = false;
+        BookListRes result = null;
+        while ((result = SearchResultManager.getInstance(mContext).getBookListRes(queryString, pageNo, "loadSearch")) != null) {
+            synchronized (mSearchResult) {
+                mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
+            }
+            setSearchResult(result.getTotal(), result.getBookList(), "loadSearch/getBookListRes");
 
-            if (moreToSearch) {
-                synchronized (mSearchResult) {
-                    mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
-                }
-            }
-            setSearchResult(
-                    result.getTotal(),    //전체 개수
-                    result.getBookList(), //현 페이지내의 검색 결과
-                    "loadSearch/onResponse");
+            //for the next
+            pageNo = mPageNo + 1;
+            found= true;
+        }
+        if (found) {
+            //update the requesting.. before return
+            setSearchRequesting(false, "loadSearch/!hasMoreToSearch");
             if (listener != null) {
-                listener.onResult(result);
+                listener.onResult(toSearchResultToArray());
             }
-            MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch");
+            MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch(2)");
             return;
         }
 
         //from server
-        search(url, new Listener() {
+        final int finalPageNo = pageNo;
+        search(queryString, pageNo, new Listener() {
             @Override
             public void onResponse(HttpResponse response) {
+                //update the requesting.. before return
                 setSearchRequesting(false, "loadSearch/onResponse");
 
                 //실패 -----------------------------------------------------
@@ -543,30 +552,28 @@ public class BookManager {
                     if (listener != null) {
                         listener.onResult(null);
                     }
+                    MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch(3)");
                     return;
                 }
 
                 //성공 -----------------------------------------------------
                 final BookListRes jsonRes = (BookListRes)response.getObject();
                 if (jsonRes != null || jsonRes.getError() != 0) {
-                    if (moreToSearch) {
-                        synchronized (mSearchResult) {
-                            mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
-                        }
+                    synchronized (mSearchResult) {
+                        mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
                     }
+                    setSearchResult(jsonRes.getTotal(), jsonRes.getBookList(), "loadSearch/onResponse");
                     if (listener != null) {
-                        listener.onResult(jsonRes);
+                        listener.onResult(toSearchResultToArray());
                     }
-                    setSearchResult(
-                            jsonRes.getTotal(),    //전체 개수
-                            jsonRes.getBookList(), //현 페이지내의 검색 결과
-                            "loadSearch/onResponse");
 
                     //save to cache and database
-                    SearchResultManager.getInstance(mContext).putToCache(url, response.getContents(), "loadSearch");
+                    SearchResultManager.getInstance(mContext).putToCache(
+                            queryString, finalPageNo, response.getContents(), "loadSearch/onResponse");
                 }
+                MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch(4)");
 
-                MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch");
+                return;
             }
         }, "loadSearch");
 
@@ -597,8 +604,10 @@ public class BookManager {
 
         //DB를 먼지 뒤지고,
         BookDetail detail = getDetail(isbn13);
-        if (detail != null && listener != null) {
-            listener.onResult(detail);
+        if (detail != null) {
+            if (listener != null) {
+                listener.onResult(detail);
+            }
             return;
         }
 
@@ -652,9 +661,19 @@ public class BookManager {
                     PopupManager.getInstance(mContext).showToast("Failed to load detail!");
                     return;
                 }
-                MyIntent.startDetailActivity(mContext, MyIntent.Event.DETAIL_REFRESHED, result, TAG);
+                MyIntent.startDetailActivity(mContext, MyIntent.Event.DETAIL_REFRESHED, result.getIsbn13(), TAG);
             }
         }, TAG);
+    }
+
+    /**
+     * Note를 저장한다.
+     * @param isbn13
+     * @param note
+     * @param f
+     */
+    public void saveNote(String isbn13, String note, String f) {
+        mTblHistory.saveNote(isbn13, note, f);
     }
 
     ///////////////////////////////////////////////////////////////////////////

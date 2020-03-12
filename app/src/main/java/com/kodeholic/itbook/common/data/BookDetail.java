@@ -33,6 +33,7 @@ public class BookDetail extends Book {
 
     //내부 사용 용도 (정렬)
     @SerializedName("createTime") protected long createTime;
+    @SerializedName("note")       protected String note;
 
     public BookDetail() { }
     public BookDetail(Book book) {
@@ -116,6 +117,14 @@ public class BookDetail extends Book {
         this.createTime = createTime;
     }
 
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
     @Override
     public String toString() {
         return "BookDetail{" +
@@ -128,6 +137,7 @@ public class BookDetail extends Book {
                 ", rating=" + rating +
                 ", desc='" + desc + '\'' +
                 ", createTime=" + createTime +
+                ", note='" + note + '\'' +
                 "} " + super.toString();
     }
 }

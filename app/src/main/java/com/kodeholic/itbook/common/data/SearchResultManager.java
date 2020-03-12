@@ -81,38 +81,45 @@ public class SearchResultManager {
 
     /**
      * SearchResult를 캐시에서 찾고, 없으면 DB에서 찾아 반환한다.
-     * @param url
+     * @param queryString
+     * @param pageNo
      * @param f
      * @return
      */
-    public SearchResult getSearchResult(String url, String f) {
-        Log.d(TAG, "getSearchResult() - f: " + f + ", url: " + url);
+    public SearchResult getSearchResult(String queryString, int pageNo, String f) {
+        Log.d(TAG, "getSearchResult() - f: " + f + ", queryString: " + queryString + ", pageNo: " + pageNo);
         //메모리 캐시에서 참조
+        String cacheKey = toKey(queryString, pageNo);
         SearchResult result;
         synchronized (mCache) {
-            if ((result = mCache.get(url)) != null) {
+            if ((result = mCache.get(cacheKey)) != null) {
                 return result;
             }
         }
 
         //DB에서 참조
-        if ((result = mTblSearchResult.getSearchResult(url, f)) != null) {
-            putToCache(result, "getSearchResult");
+        if ((result = mTblSearchResult.getSearchResult(queryString, pageNo, f)) != null) {
+            putToCache(cacheKey, result, "getSearchResult");
             return result;
         }
 
         return null;
     }
 
+    private String toKey(String queryString, int pageNo) {
+        return queryString + "." + pageNo;
+    }
+
     /**
      * SearchResult를 BookListRes 포맷으로 반환한다.
-     * @param url
+     * @param queryString
+     * @param pageNo
      * @param f
      * @return
      */
-    public BookListRes getBookListRes(String url, String f) {
+    public BookListRes getBookListRes(String queryString, int pageNo, String f) {
         try {
-            SearchResult result = getSearchResult(url, f);
+            SearchResult result = getSearchResult(queryString, pageNo, f);
             if (result != null) {
                 return JSUtil.json2Object(result.getJsonResult(), BookListRes.class);
             }
@@ -129,10 +136,10 @@ public class SearchResultManager {
      * @param result
      * @param f
      */
-    public void putToCache(SearchResult result, String f) {
-        Log.d(TAG, "putToCache(1) - f: " + f + ", url: " + result.getUrl());
+    public void putToCache(String cacheKey, SearchResult result, String f) {
+        Log.d(TAG, "putToCache(1) - f: " + f + ", cacheKey: " + cacheKey);
         synchronized (mCache) {
-            mCache.put(result.getUrl(), result);
+            mCache.put(cacheKey, result);
         }
         Log.d(TAG, "putToCache() - create: " + mCache.createCount()
                 + ", eviction: " + mCache.evictionCount()
@@ -144,15 +151,17 @@ public class SearchResultManager {
 
     /**
      * Database 및 Cache에 보관한다.
-     * @param url
+     * @param queryString
+     * @param pageNo
      * @param jsonResult
      * @param f
      */
-    public void putToCache(String url, String jsonResult, String f) {
-        Log.d(TAG, "putToCache(2) - f: " + f + ", url: " + url);
-        SearchResult result = new SearchResult(url, jsonResult);
+    public void putToCache(String queryString, int pageNo, String jsonResult, String f) {
+        Log.d(TAG, "putToCache(2) - f: " + f + ", queryString: " + queryString + ", pageNo: " + pageNo);
+        String cacheKey = toKey(queryString, pageNo);
+        SearchResult result = new SearchResult(queryString, pageNo, jsonResult);
         //cache
-        putToCache(result, f);
+        putToCache(cacheKey, result, f);
         //database
         mTblSearchResult.addSearchResult(result, f);
     }

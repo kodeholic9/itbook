@@ -12,6 +12,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.kodeholic.itbook.R;
@@ -62,13 +63,6 @@ public class SectionSearchFragment extends SectionFragment {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
-
-//                int lastVisibleItemPosition = ((LinearLayoutManager) recyclerView.getLayoutManager()).findLastCompletelyVisibleItemPosition();
-//                int itemTotalCount = recyclerView.getAdapter().getItemCount() - 1;
-//                if (lastVisibleItemPosition == itemTotalCount) {
-//                    Log.d(TAG, "last Position...");
-//                    more();
-//                }
             }
 
             @Override
@@ -76,19 +70,23 @@ public class SectionSearchFragment extends SectionFragment {
                 super.onScrollStateChanged(recyclerView, newState);
                 boolean isTop    = !recyclerView.canScrollVertically(-1); //위로 스크롤이 불가한 경우,
                 boolean isBottom = !recyclerView.canScrollVertically( 1); //아래로 스크롤이 불가한 경우,
-                boolean hasMoreToSearch  = BookManager.getInstance(mContext).hasMoreToSearch();
+                boolean hasMoreToSearch = BookManager.getInstance(mContext).hasMoreToSearch("onScrollStateChanged");
+                boolean isRequesting    = BookManager.getInstance(mContext).isSearchRequesting();
                 Log.d(TAG, "onScrollStateChanged() - newState: " + newState
                         + ", isTop: " + isTop
                         + ", isBottom: " + isBottom
                         + ", hasMoreToSearch: " + hasMoreToSearch
+                        + ", isRequesting: " + isRequesting
                 );
 
                 //스크롤이 정지되었을 때 처리
-                if (newState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
-                    if (isBottom && hasMoreToSearch) {
-                        search(false);
-                    }
-                    updateView("onScrollStateChanged");
+//                if (newState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
+//                    if (isBottom && hasMoreToSearch) {
+//                        search(false);
+//                    }
+//                }
+                if (isBottom && hasMoreToSearch && !isRequesting) {
+                    loadSearch(false);
                 }
 
                 return;
@@ -105,13 +103,13 @@ public class SectionSearchFragment extends SectionFragment {
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 Log.d(TAG, "onEditorAction() - actionId: " + actionId);
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    search(true);
+                    loadSearch(true);
                 }
                 return false;
             }
         });
 
-        updateView("onCreateView");
+        updateView(false, "onCreateView");
 
         return root;
     }
@@ -119,17 +117,17 @@ public class SectionSearchFragment extends SectionFragment {
     @Override
     public void onStop() {
         super.onStop();
-        clearInput(true, "onStop");
+        hideSoftInput("onStop");
     }
 
     @Override
     public void onEvent(int event, Object o) {
         Log.d(TAG, "onEvent() - event: " + event);
         if (event == MyIntent.Event.SEARCH_DEL_INPUT) {
-            clearInput(true, "SEARCH_DEL_INPUT");
+            hideSoftInput("SEARCH_DEL_INPUT");
         }
         if (event == MyIntent.Event.SEARCH_REFRESHED) {
-            updateView("SEARCH_REFRESHED");
+            //updateView("SEARCH_REFRESHED");
         }
     }
 
@@ -137,34 +135,29 @@ public class SectionSearchFragment extends SectionFragment {
      * Input을 clear한다.
      * @param f
      */
-    private void clearInput(boolean keyboardOnly, String f) {
+    private void hideSoftInput(String f) {
         if (ed_input.hasFocus()) {
             Utils.hideSoftInput(mContext, ed_input, f);
             ed_input.clearFocus();
-
-            if (!keyboardOnly) {
-                ed_input.setText("");
-                BookManager.getInstance(mContext).clearSearchResult();
-                updateView("clearInput");
-            }
         }
     }
 
-    private void updateView(String f) {
+    private void updateView(final boolean initFlag, String f) {
         Log.d(TAG, "updateView() - f: " + f);
         mHandler.post(new Runnable() {
             @Override
             public void run() {
-                updateView();
+                updateView(initFlag);
             }
         });
     }
 
-    private void updateView() {
+    private void updateView(boolean initFlag) {
         try {
             Book[] results = BookManager.getInstance(mContext).toSearchResultToArray();
-
-            Log.d(TAG, "updateView() - results.length: " + results.length + ", tv_no_result: " + tv_no_result);
+            Log.d(TAG, "updateView() - results.length: " + results.length
+                    + ", tv_no_result: " + tv_no_result
+            );
 
             //조회 결과 없음
             if (results.length == 0) {
@@ -177,9 +170,20 @@ public class SectionSearchFragment extends SectionFragment {
             tv_no_result.setVisibility(View.GONE);
             mListView.setVisibility(View.VISIBLE);
 
+
             //리스트를 갱신한다.
-            mAdapter.setData(results);
+            if (results != null) {
+                mAdapter.setData(results);
+            }
             mAdapter.notifyDataSetChanged();
+
+            //move to top
+            if (initFlag) {
+                LinearLayoutManager lm = (LinearLayoutManager) mListView.getLayoutManager();
+                lm.scrollToPositionWithOffset(0, 0);
+            }
+
+            Log.d(TAG, "updateView() - notifyDataSetChanged... " + mAdapter.getItemCount());
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -190,23 +194,36 @@ public class SectionSearchFragment extends SectionFragment {
      * Search를 조회한다.
      * @param initFlag
      */
-    private void search(final boolean initFlag) {
+    private void loadSearch(final boolean initFlag) {
         String s = ed_input.getText().toString();
-        if (initFlag && TextUtils.isEmpty(s)) {
-            PopupManager.getInstance(mContext).showToast("Empty queryString!");
+        boolean isEquals = BookManager.getInstance(mContext).equalsQueryString(s);
+        if (initFlag) {
+            if (TextUtils.isEmpty(s)) {
+                PopupManager.getInstance(mContext).showToast("Empty queryString!");
+                return;
+            }
+        }
+        else if (!isEquals) {
+            PopupManager.getInstance(mContext).showToast("Cannot continue! Query string is changed!");
             return;
         }
 
         if (initFlag) {
             showLoading("search");
-            BookManager.getInstance(mContext).clearSearchResult();
         }
-        BookManager.getInstance(mContext).loadSearch(s, new BookManager.SearchListener() {
+        BookManager.getInstance(mContext).loadSearch(initFlag, s, new BookManager.SearchListener() {
             @Override
-            public void onResult(BookListRes result) {
+            public void onResult(Book[] result) {
                 if (initFlag) { hideLoading("search"); }
+
+                //update the list...
+                updateView(initFlag, "loadSearch.onResult");
             }
         }, TAG);
+
+        if (!initFlag) {
+            mAdapter.notifyDataSetChanged();
+        }
     }
 
     public class SearchAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -228,7 +245,10 @@ public class SectionSearchFragment extends SectionFragment {
         public int getItemViewType(int position) {
             // loader can't be at position 0
             // loader can only be at the last position
-            if (position != 0 && position == getItemCount() - 1) {
+            if (getItemCount() > data.length
+                    && position != 0
+                    && position == data.length)
+            {
                 return VIEW_TYPE_LOAD;
             }
 
@@ -239,6 +259,9 @@ public class SectionSearchFragment extends SectionFragment {
         public int getItemCount() {
             if (data == null || data.length == 0) {
                 return 0;
+            }
+            if (!BookManager.getInstance(mContext).hasMoreToSearch("getItemCount")) {
+                return data.length;
             }
 
             //for loading view....
@@ -269,6 +292,11 @@ public class SectionSearchFragment extends SectionFragment {
             }
         }
 
+        /**
+         * 로딩을 바인딩한다.
+         * @param holder
+         * @param position
+         */
         protected void onBindLoadingViewHolder(final LoadingViewHolder holder, final int position) {
             boolean requesting = BookManager.getInstance(mContext).isSearchRequesting();
             Log.d(TAG, "onBindLoadingViewHolder() - position: " + position + ", requesting: " + requesting);
@@ -330,7 +358,7 @@ public class SectionSearchFragment extends SectionFragment {
                                 PopupManager.getInstance(mContext).showToast("Failed to load detail!");
                                 return;
                             }
-                            MyIntent.startDetailActivity(mContext, MyIntent.Event.DETAIL_REFRESHED, result, TAG);
+                            MyIntent.startDetailActivity(mContext, MyIntent.Event.DETAIL_REFRESHED, result.getIsbn13(), TAG);
                         }
                     }, TAG);
                 }

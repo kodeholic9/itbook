@@ -2,29 +2,38 @@ package com.kodeholic.itbook.common.data;
 
 
 public class SearchResult {
-    private String url;
+    private String queryString;
+    private int    pageNo;
     private String jsonResult; //json format
     private long   searchTime;
 
     public SearchResult() {}
-    public SearchResult(String url, String jsonResult) {
-        this.url = url;
+    public SearchResult(String queryString, int pageNo, String jsonResult) {
+        this.queryString= queryString;
+        this.pageNo     = pageNo;
         this.jsonResult = jsonResult;
         this.searchTime = System.currentTimeMillis();
     }
 
     public int length() {
-        int ln = ((url != null) ? url.length() : 0)
-               + ((jsonResult != null) ? jsonResult.length() : 0);
+        int ln = ((jsonResult != null) ? jsonResult.length() : 0);
         return ln;
     }
 
-    public String getUrl() {
-        return url;
+    public String getQueryString() {
+        return queryString;
     }
 
-    public void setUrl(String url) {
-        this.url = url;
+    public void setQueryString(String queryString) {
+        this.queryString = queryString;
+    }
+
+    public int getPageNo() {
+        return pageNo;
+    }
+
+    public void setPageNo(int pageNo) {
+        this.pageNo = pageNo;
     }
 
     public String getJsonResult() {
@@ -46,7 +55,8 @@ public class SearchResult {
     @Override
     public String toString() {
         return "SearchResult{" +
-                "url='" + url + '\'' +
+                "queryString='" + queryString + '\'' +
+                ", pageNo=" + pageNo +
                 ", jsonResult='" + jsonResult + '\'' +
                 ", searchTime=" + searchTime +
                 '}';

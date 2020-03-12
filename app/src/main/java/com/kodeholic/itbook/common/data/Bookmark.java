@@ -33,6 +33,7 @@ public class Bookmark extends BookDetail {
         this.year      = detail.getYear();
         this.rating    = detail.getRating();
         this.desc      = detail.getDesc();
+        this.note      = detail.getNote();
     }
 
     public int getOrder() {

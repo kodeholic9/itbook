@@ -117,7 +117,7 @@ public class TBL_BOOKMARK extends TABLE<Bookmark> {
 						+ CREATE_TIME + "=" + bookmark.getCreateTime()
 						+ " WHERE " + ISBN13 + "=" + bookmark.getIsbn13();
 		boolean ret = update_raw(sql);
-		Log.d(TABLE_NAME, "updateName() ret: " + ret);
+		Log.d(TABLE_NAME, "updateOrder() ret: " + ret);
 
 		return ret;
 	}

@@ -24,6 +24,7 @@ import com.kodeholic.itbook.common.BookManager;
 import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.MySettings;
+import com.kodeholic.itbook.common.Utils;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.IBase;
 import com.kodeholic.itbook.ui.main.SectionsPagerAdapter;
@@ -61,9 +62,14 @@ public class MainActivity extends AppCompatActivity implements IBase, View.OnCli
         BitmapCacheManager.getInstance(mContext).startLazyDownloaderTask();
 
         //BookManager 초기화 작업을 수행한다.
-        BookManager.getInstance(mContext).clearSearchResult();
-        BookManager.getInstance(mContext).loadNewList(null, "onCreate");
-        BookManager.getInstance(mContext).loadBookmark("onCreate");
+        Utils.runNew(new Runnable() {
+            @Override
+            public void run() {
+                BookManager.getInstance(mContext).clearSearchResult();
+                BookManager.getInstance(mContext).loadNewList(null, "onCreate");
+                BookManager.getInstance(mContext).loadBookmark("onCreate");
+            }
+        });
     }
 
     @Override

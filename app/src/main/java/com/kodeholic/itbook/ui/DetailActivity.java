@@ -2,17 +2,21 @@ package com.kodeholic.itbook.ui;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -36,6 +40,7 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
     private static final int VIEW_TYPE_LOW  = 0;
     private static final int VIEW_TYPE_MID  = 1;
     private static final int VIEW_TYPE_HIGH = 2;
+    private static final int VIEW_TYPE_EDIT = 3;
 
     public class NV {
         public String name;
@@ -44,7 +49,7 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
         public NV() { }
         public NV(String name, String value, int viewType) {
             this.name = name;
-            this.value= value;
+            this.value= value != null ? value : "";
             this.viewType = viewType;
         }
     }
@@ -60,6 +65,9 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
     private ImageView   iv_image;
     private Button      bt_exit;
     private TextView    tv_bookmark;
+
+    private NameValueItemViewHolder mNoteViewHolder;
+    private String mNewNote;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +100,14 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
         LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mControlRecevier);
     }
 
+    @Override
+    public void onBackPressed() {
+        if (checkNoteAndShowDialog()) {
+            return;
+        }
+        super.onBackPressed();
+    }
+
     /**
      * Intent를 처리한다.
      * @param intent
@@ -109,7 +125,8 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
         }
 
         try {
-            mDetail = JSUtil.json2Object(intent.getStringExtra(MyIntent.Extra.BOOK_DETAIL), BookDetail.class);
+            mDetail  = JSUtil.json2Object(intent.getStringExtra(MyIntent.Extra.BOOK_DETAIL), BookDetail.class);
+            mNewNote = mDetail.getNote();
             synchronized (mNVList) {
                 mNVList.clear();
                 mNVList.add(new NV("Title", mDetail.getTitle(), VIEW_TYPE_LOW));
@@ -126,6 +143,7 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
                 mNVList.add(new NV("price", mDetail.getPrice(), VIEW_TYPE_LOW));
                 mNVList.add(new NV("image", mDetail.getImage(), VIEW_TYPE_LOW));
                 mNVList.add(new NV("url", mDetail.getUrl(), VIEW_TYPE_LOW));
+                mNVList.add(new NV("note", mDetail.getNote(), VIEW_TYPE_EDIT));
             }
 
             //View를 갱신한다.
@@ -203,6 +221,10 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
                 iv_image,
                 TAG);
 
+        //작성중인 Note를 복원한다.
+        if (mNoteViewHolder != null && mNoteViewHolder.ed_input != null) {
+            mNewNote = mNoteViewHolder.ed_input.getText().toString();
+        }
         mAdapter.setData(toArray());
         mAdapter.notifyDataSetChanged();
     }
@@ -238,6 +260,9 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.bt_exit:
+                if (checkNoteAndShowDialog()) {
+                    break;
+                }
                 finish();
                 break;
 
@@ -255,19 +280,8 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
         }
     }
 
-    public class DetailAdapter extends RecyclerView.Adapter<DetailAdapter.NameValueItemViewHolder> {
+    public class DetailAdapter extends RecyclerView.Adapter<NameValueItemViewHolder> {
         private NV[] data;
-
-        public class NameValueItemViewHolder extends RecyclerView.ViewHolder {
-            public TextView tv_name;
-            public TextView tv_value;
-
-            public NameValueItemViewHolder(View itemView) {
-                super(itemView);
-                tv_name  = itemView.findViewById(R.id.tv_name);
-                tv_value = itemView.findViewById(R.id.tv_value);
-            }
-        }
         public DetailAdapter(NV[] data) {
             this.data = data;
         }
@@ -288,11 +302,17 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
             View itemView = LayoutInflater.from(parent.getContext()).inflate(
                     (viewType == VIEW_TYPE_LOW)
                             ? R.layout.list_item_name_value_low : (viewType == VIEW_TYPE_MID)
-                            ? R.layout.list_item_name_value_mid : R.layout.list_item_name_value_high,
+                            ? R.layout.list_item_name_value_mid : (viewType == VIEW_TYPE_HIGH)
+                            ? R.layout.list_item_name_value_high: R.layout.list_item_name_value_edit,
                     parent,
                     false);
 
-            return new NameValueItemViewHolder(itemView);
+            NameValueItemViewHolder viewHolder = new NameValueItemViewHolder(itemView, viewType);
+            if (viewHolder.viewType == VIEW_TYPE_EDIT) {
+                mNoteViewHolder = viewHolder;
+            }
+
+            return viewHolder;
         }
 
         @Override
@@ -300,11 +320,63 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
             final NV item = data[position];
             holder.tv_name.setText(item.name);
             holder.tv_value.setText(item.value);
+            if (holder.ed_input != null) {
+                holder.ed_input.setText(mNewNote);
+            }
         }
 
         @Override
         public int getItemCount() {
             return data.length;
         }
+    }
+
+    public class NameValueItemViewHolder extends RecyclerView.ViewHolder {
+        public int      viewType;
+        public TextView tv_name;
+        public TextView tv_value;
+        public EditText ed_input;
+
+        public NameValueItemViewHolder(View itemView, int viewType) {
+            super(itemView);
+            this.viewType = viewType;
+            this.tv_name  = itemView.findViewById(R.id.tv_name);
+            this.tv_value = itemView.findViewById(R.id.tv_value);
+            this.ed_input = itemView.findViewById(R.id.ed_input);
+        }
+    }
+
+    private boolean checkNoteAndShowDialog() {
+        if (mNoteViewHolder != null && mNoteViewHolder.ed_input != null) {
+            String newNote = mNoteViewHolder.ed_input.getText().toString();
+            String oldNote = mDetail.getNote() != null ? mDetail.getNote() : "";
+            Log.d(TAG, "newNote: " + newNote);
+            Log.d(TAG, "oldNote: " + oldNote);
+            if (!newNote.equals(oldNote)) {
+                showDialog(mDetail.getIsbn13(), newNote);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void showDialog(final String isbn13, final String note) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Notes have changed. Do you want to save?");
+        builder.setPositiveButton("Yes",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        BookManager.getInstance(mContext).saveNote(isbn13, note, TAG);
+                        finish();
+                    }
+                });
+        builder.setNegativeButton("No",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        finish();
+                    }
+                });
+        builder.show();
     }
 }

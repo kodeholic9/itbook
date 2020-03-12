@@ -35,6 +35,7 @@ public class MyIntent {
         public static final String EVENT       = PACKAGE_NAME + ".extra.EVENT";
         public static final String BOOK_DETAIL = PACKAGE_NAME + ".extra.BOOK_DETAIL";
         public static final String SORT_OPTION = PACKAGE_NAME + ".extra.SORT_OPTION";
+        public static final String BOOK_ISBN13 = PACKAGE_NAME + ".extra.BOOK_ISBN13";
     }
 
     /**
@@ -134,27 +135,20 @@ public class MyIntent {
      * @param f
      * @return
      */
-    public static boolean sendDetailEvent(Context context, int event, BookDetail detail, String f) {
-        Log.d(TAG, "sendDetailEvent() - f: " + f + ", event: " + event + ", detail: " + detail);
+    public static void startDetailActivity(Context context, int event, String isbn13, String f) {
+        Log.d(TAG, "startDetailActivity() - f: " + f + ", event: " + event + ", isbn13: " + isbn13);
 
-        Intent intent = new Intent(Action.DETAIL_ACTION);
-        intent.putExtra(Extra.EVENT, event);
-        if (detail != null) {
-            intent.putExtra(Extra.BOOK_DETAIL, JSUtil.json2String(detail));
+        //TODO - Note가 갱신된 경우, 이에 대한 반영이 필요함.
+        BookDetail detail = BookManager.getInstance(context).getDetail(isbn13);
+        if (detail == null) {
+            Log.e(TAG, "startDetailActivity() - BookDetail not found!");
+            return;
         }
-        show(TAG, "sendDetailEvent()", intent);
-        return LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-    }
-
-    public static void startDetailActivity(Context context, int event, BookDetail detail, String f) {
-        Log.d(TAG, "sendDetailEvent() - f: " + f + ", event: " + event + ", detail: " + detail);
 
         Intent intent = new Intent(context, DetailActivity.class);
         intent.setAction(Action.DETAIL_ACTION);
         intent.putExtra(Extra.EVENT, event);
-        if (detail != null) {
-            intent.putExtra(Extra.BOOK_DETAIL, JSUtil.json2String(detail));
-        }
+        intent.putExtra(Extra.BOOK_DETAIL, JSUtil.json2String(detail));
         show(TAG, "startDetailActivity()", intent);
         context.startActivity(intent);
     }
