@@ -1,46 +1,23 @@
-package com.kodeholic.itbook.common.data;
+package com.kodeholic.itbook.common;
 
-import android.app.ActivityManager;
 import android.content.Context;
-import android.content.res.Resources;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
-import android.os.AsyncTask;
 import android.util.LruCache;
-import android.view.View;
-import android.view.animation.AlphaAnimation;
-import android.widget.ImageView;
 
-import com.jakewharton.disklrucache.DiskLruCache;
-import com.kodeholic.itbook.common.DatabaseManager;
-import com.kodeholic.itbook.common.JobExecutor;
-import com.kodeholic.itbook.database.TBL_BOOKMARK;
-import com.kodeholic.itbook.database.TBL_NEW_LIST;
+import com.kodeholic.itbook.common.data.BookListRes;
+import com.kodeholic.itbook.common.data.SearchResult;
 import com.kodeholic.itbook.database.TBL_SEARCH_RESULT;
-import com.kodeholic.itbook.lib.http.HttpListener;
-import com.kodeholic.itbook.lib.http.HttpResponse;
-import com.kodeholic.itbook.lib.http.HttpUtil;
 import com.kodeholic.itbook.lib.util.JSUtil;
 import com.kodeholic.itbook.lib.util.Log;
 
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.List;
 
 public class SearchResultManager {
     public static final String TAG = SearchResultManager.class.getSimpleName();
 
     //캐시 크기
-    public static final int CACHE_SIZE = 1 * 1024 * 1024;
+    public static final int  CACHE_SIZE = 1 * 1024 * 1024;
+    public static final long EVICT_TIMEO = (15 * 60 * 1000); //15 min
+    //public static final long EVICT_TIMEO = (60 * 1000);
 
     private volatile static SearchResultManager sInstance;
     private Context mContext = null;
@@ -80,13 +57,23 @@ public class SearchResultManager {
     }
 
     /**
+     * 캐시의 key를 생성한다.
+     * @param queryString
+     * @param pageNo
+     * @return
+     */
+    private String toKey(String queryString, int pageNo) {
+        return queryString + "." + pageNo;
+    }
+
+    /**
      * SearchResult를 캐시에서 찾고, 없으면 DB에서 찾아 반환한다.
      * @param queryString
      * @param pageNo
      * @param f
      * @return
      */
-    public SearchResult getSearchResult(String queryString, int pageNo, String f) {
+    private SearchResult getSearchResult(String queryString, int pageNo, String f) {
         Log.d(TAG, "getSearchResult() - f: " + f + ", queryString: " + queryString + ", pageNo: " + pageNo);
         //메모리 캐시에서 참조
         String cacheKey = toKey(queryString, pageNo);
@@ -106,10 +93,6 @@ public class SearchResultManager {
         return null;
     }
 
-    private String toKey(String queryString, int pageNo) {
-        return queryString + "." + pageNo;
-    }
-
     /**
      * SearchResult를 BookListRes 포맷으로 반환한다.
      * @param queryString
@@ -119,8 +102,15 @@ public class SearchResultManager {
      */
     public BookListRes getBookListRes(String queryString, int pageNo, String f) {
         try {
-            SearchResult result = getSearchResult(queryString, pageNo, f);
+            SearchResult result = getSearchResult(queryString, pageNo, "getBookListRes");
             if (result != null) {
+                long current = System.currentTimeMillis();
+                long evictTime = result.getSearchTime() + EVICT_TIMEO;
+                if (current > evictTime) {
+                    Log.w(TAG, "getBookListRes() - Cache is too old! current: " + current + ", evictTime: " + evictTime);
+                    removeCache(queryString, "getBookListRes");
+                    return null;
+                }
                 return JSUtil.json2Object(result.getJsonResult(), BookListRes.class);
             }
         }
@@ -164,5 +154,28 @@ public class SearchResultManager {
         putToCache(cacheKey, result, f);
         //database
         mTblSearchResult.addSearchResult(result, f);
+    }
+
+    public void removeCache(String queryString, String f) {
+        Log.d(TAG, "removeCache() - f: " + f + ", queryString: " + queryString);
+        List<SearchResult> targets = mTblSearchResult.getSearchResult(queryString, f);
+        if (targets != null) {
+            //cache
+            removeCache(targets);
+            //database
+            mTblSearchResult.delSearchResult(queryString, f);
+        }
+    }
+
+    private void removeCache(List<SearchResult> targets) {
+        Log.d(TAG, "removeCache(1) - size: " + mCache.size());
+        synchronized (mCache) {
+            for (SearchResult target: targets) {
+                mCache.remove(toKey(target.getQueryString(), target.getPageNo()));
+            }
+        }
+        Log.d(TAG, "removeCache(2) - size: " + mCache.size());
+
+        return;
     }
 }

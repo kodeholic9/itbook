@@ -7,9 +7,6 @@ import android.os.Looper;
 import com.kodeholic.itbook.common.data.Book;
 import com.kodeholic.itbook.common.data.BookDetail;
 import com.kodeholic.itbook.common.data.Bookmark;
-import com.kodeholic.itbook.common.data.SearchResult;
-import com.kodeholic.itbook.common.data.SearchResultManager;
-import com.kodeholic.itbook.database.DatabaseHelper;
 import com.kodeholic.itbook.database.TBL_BOOKMARK;
 import com.kodeholic.itbook.database.TBL_HISTORY;
 import com.kodeholic.itbook.database.TBL_NEW_LIST;
@@ -24,7 +21,6 @@ import com.kodeholic.itbook.common.data.BookDetailRes;
 import com.kodeholic.itbook.common.data.BookListRes;
 import com.kodeholic.itbook.ui.base.IBase;
 
-import java.lang.reflect.Array;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -427,7 +423,6 @@ public class BookManager {
                 + ", size: " + mSearchResult.size() + " --> " + newSize
         );
 
-        int oldSize = mSearchResult.size();
         try {
             synchronized (mSearchResult) {
                 mSearchResult.addAll(result);
@@ -567,9 +562,12 @@ public class BookManager {
                         listener.onResult(toSearchResultToArray());
                     }
 
+                    //TODO - check empty??
                     //save to cache and database
-                    SearchResultManager.getInstance(mContext).putToCache(
-                            queryString, finalPageNo, response.getContents(), "loadSearch/onResponse");
+                    if (jsonRes.getBookList() != null && jsonRes.getBookList().size() > 0) {
+                        SearchResultManager.getInstance(mContext).putToCache(
+                                queryString, finalPageNo, response.getContents(), "loadSearch/onResponse");
+                    }
                 }
                 MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch(4)");
 

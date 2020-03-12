@@ -1,6 +1,8 @@
 package com.kodeholic.itbook.ui.main;
 
 import android.os.Bundle;
+import android.text.InputFilter;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -9,6 +11,7 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AbsListView;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -29,6 +32,8 @@ import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.BookItemViewHolder;
 import com.kodeholic.itbook.ui.base.LoadingViewHolder;
 
+import java.util.regex.Pattern;
+
 /**
  * A placeholder fragment containing a simple view.
  */
@@ -37,6 +42,7 @@ public class SectionSearchFragment extends SectionFragment {
 
     private SearchAdapter mAdapter;
     private RecyclerView  mListView;
+    private LinearLayoutManager mLM;
     private EditText      ed_input;
     private TextView      tv_no_result;
 
@@ -80,30 +86,32 @@ public class SectionSearchFragment extends SectionFragment {
                 );
 
                 //스크롤이 정지되었을 때 처리
-//                if (newState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
-//                    if (isBottom && hasMoreToSearch) {
-//                        search(false);
-//                    }
-//                }
-                if (isBottom && hasMoreToSearch && !isRequesting) {
-                    loadSearch(false);
+                if (newState == AbsListView.OnScrollListener.SCROLL_STATE_IDLE) {
+                    if (isBottom && hasMoreToSearch && !isRequesting) {
+                        loadSearch(false, "onScrollStateChanged");
+                    }
                 }
+//                if (isBottom && hasMoreToSearch && !isRequesting) {
+//                    loadSearch(false);
+//                }
 
                 return;
             }
         });
+        mLM = (LinearLayoutManager) mListView.getLayoutManager();
 
         //no result
         tv_no_result = root.findViewById(R.id.tv_no_result);
 
         //edit text
         ed_input = root.findViewById(R.id.ed_input);
+        ed_input.setFilters(new InputFilter[]{ filterAlphaNum });
         ed_input.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 Log.d(TAG, "onEditorAction() - actionId: " + actionId);
                 if (actionId == EditorInfo.IME_ACTION_DONE) {
-                    loadSearch(true);
+                    loadSearch(true, "onCreateView");
                 }
                 return false;
             }
@@ -113,6 +121,19 @@ public class SectionSearchFragment extends SectionFragment {
 
         return root;
     }
+
+    /**
+     * 입력 가능한 문자를 제한한다. (DB 삽입/조회시 방어)
+     */
+    private InputFilter filterAlphaNum = new InputFilter() {
+        public CharSequence filter(CharSequence source, int start, int end, Spanned dest, int dstart, int dend) {
+            Pattern ps = Pattern.compile("^[a-zA-Z0-9 +_]*$");
+            if (!ps.matcher(source).matches()) {
+                return "";
+            }
+            return null;
+        }
+    };
 
     @Override
     public void onStop() {
@@ -170,17 +191,15 @@ public class SectionSearchFragment extends SectionFragment {
             tv_no_result.setVisibility(View.GONE);
             mListView.setVisibility(View.VISIBLE);
 
-
             //리스트를 갱신한다.
             if (results != null) {
-                mAdapter.setData(results);
+                mAdapter.setData(initFlag, results);
             }
             mAdapter.notifyDataSetChanged();
 
             //move to top
             if (initFlag) {
-                LinearLayoutManager lm = (LinearLayoutManager) mListView.getLayoutManager();
-                lm.scrollToPositionWithOffset(0, 0);
+                mLM.scrollToPositionWithOffset(0, 0);
             }
 
             Log.d(TAG, "updateView() - notifyDataSetChanged... " + mAdapter.getItemCount());
@@ -194,7 +213,8 @@ public class SectionSearchFragment extends SectionFragment {
      * Search를 조회한다.
      * @param initFlag
      */
-    private void loadSearch(final boolean initFlag) {
+    private void loadSearch(final boolean initFlag, String f) {
+        Log.d(TAG, "loadSearch() - f: " + f + ", initFlag: " + initFlag);
         String s = ed_input.getText().toString();
         boolean isEquals = BookManager.getInstance(mContext).equalsQueryString(s);
         if (initFlag) {
@@ -222,6 +242,7 @@ public class SectionSearchFragment extends SectionFragment {
         }, TAG);
 
         if (!initFlag) {
+            mAdapter.setInitFlag(false);
             mAdapter.notifyDataSetChanged();
         }
     }
@@ -232,13 +253,19 @@ public class SectionSearchFragment extends SectionFragment {
 
         private Book[] data;
         private boolean detailStarting = false;
+        private boolean initFlag = false;
 
         public SearchAdapter(Book[] data) {
             this.data = data;
         }
 
-        public void setData(Book[] data) {
+        public void setData(boolean initFlag, Book[] data) {
+            this.initFlag = initFlag;
             this.data = data;
+        }
+
+        public void setInitFlag(boolean initFlag) {
+            this.initFlag = initFlag;
         }
 
         @Override

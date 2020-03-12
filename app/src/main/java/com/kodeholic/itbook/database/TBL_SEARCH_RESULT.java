@@ -95,6 +95,12 @@ public class TBL_SEARCH_RESULT extends TABLE<SearchResult> {
 		return select1(null, where, null);
 	}
 
+    public List<SearchResult> getSearchResult(String queryString, String f) {
+        Log.d(TABLE_NAME, "getSearchResult() - f: " + f + ", queryString: " + queryString);
+        String where =  QUERY_STRING + "='" + queryString + "'";
+        return select(null, where, null, null, null);
+    }
+
 	public boolean addSearchResult(SearchResult result, String f) {
 		Log.d(TABLE_NAME, "addSearchResult() - f: " + f);
 		String where =  QUERY_STRING + "='" + result.getQueryString() + "' AND " + PAGE_NO + "=" + result.getPageNo();
@@ -107,4 +113,11 @@ public class TBL_SEARCH_RESULT extends TABLE<SearchResult> {
 		Log.d(TABLE_NAME, "addSearchResult() - insert!");
 		return insert(result) > 0;
 	}
+
+	public boolean delSearchResult(String queryString, String f) {
+        Log.d(TABLE_NAME, "delSearchResult() - f: " + f + ", queryString: " + queryString);
+        String whereClause = QUERY_STRING + "='" + queryString + "'";
+        return delete(whereClause, null) > 0;
+    }
+
 }
