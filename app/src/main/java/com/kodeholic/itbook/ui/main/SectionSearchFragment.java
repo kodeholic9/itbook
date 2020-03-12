@@ -9,17 +9,14 @@ import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.AbsListView;
 import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.kodeholic.itbook.R;
 import com.kodeholic.itbook.common.BookManager;
-import com.kodeholic.itbook.common.MyCacheManager;
+import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.PopupManager;
 import com.kodeholic.itbook.common.Utils;
@@ -30,10 +27,6 @@ import com.kodeholic.itbook.lib.http.HttpResponse;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.BookItemViewHolder;
 import com.kodeholic.itbook.ui.base.LoadingViewHolder;
-
-import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -168,25 +161,28 @@ public class SectionSearchFragment extends SectionFragment {
     }
 
     private void updateView() {
-        Book[] results = BookManager.getInstance(mContext).toSearchResultToArray();
-        if (results == null) {
-            Log.e(TAG, "updateView() - the results is null");
-            return;
-        }
-        Log.d(TAG, "updateView() - results.length: " + results.length + ", tv_no_result: " + tv_no_result);
+        try {
+            Book[] results = BookManager.getInstance(mContext).toSearchResultToArray();
 
-        //리스트를 갱신한다.
-        mAdapter.setData(results);
-        mAdapter.notifyDataSetChanged();
+            Log.d(TAG, "updateView() - results.length: " + results.length + ", tv_no_result: " + tv_no_result);
 
-        //...
-        if (results.length == 0) {
-            tv_no_result.setVisibility(View.VISIBLE);
-            mListView.setVisibility(View.GONE);
-        }
-        else {
+            //조회 결과 없음
+            if (results.length == 0) {
+                tv_no_result.setVisibility(View.VISIBLE);
+                mListView.setVisibility(View.GONE);
+                return;
+            }
+
+            //조회 결과 있음
             tv_no_result.setVisibility(View.GONE);
             mListView.setVisibility(View.VISIBLE);
+
+            //리스트를 갱신한다.
+            mAdapter.setData(results);
+            mAdapter.notifyDataSetChanged();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -205,9 +201,9 @@ public class SectionSearchFragment extends SectionFragment {
             showLoading("search");
             BookManager.getInstance(mContext).clearSearchResult();
         }
-        BookManager.getInstance(mContext).loadSearch(s, new BookManager.Listener() {
+        BookManager.getInstance(mContext).loadSearch(s, new BookManager.SearchListener() {
             @Override
-            public void onResponse(HttpResponse response) {
+            public void onResult(BookListRes result) {
                 if (initFlag) { hideLoading("search"); }
             }
         }, TAG);
@@ -296,7 +292,7 @@ public class SectionSearchFragment extends SectionFragment {
             holder.tv_isbn13.setText("(" + item.getIsbn13() + ")");
             holder.tv_price.setText(item.getPrice());
             //이미지를 view에 붙인다.
-            MyCacheManager.getInstance(mContext).loadBitmap(
+            BitmapCacheManager.getInstance(mContext).loadBitmap(
                     item.getImage(),
                     holder.iv_image,
                     TAG);

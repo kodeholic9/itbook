@@ -53,6 +53,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         execSQL(db, TBL_NEW_LIST.CREATE, "createTables");
         execSQL(db, TBL_HISTORY.CREATE, "createTables");
         execSQL(db, TBL_BOOKMARK.CREATE, "createTables");
+        execSQL(db, TBL_SEARCH_RESULT.CREATE, "createTables");
     }
 
     /**
@@ -63,6 +64,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         execSQL(db, TBL_NEW_LIST.DROP, "dropTables");
         execSQL(db, TBL_HISTORY.DROP, "dropTables");
         execSQL(db, TBL_BOOKMARK.DROP, "dropTables");
+        execSQL(db, TBL_SEARCH_RESULT.DROP, "dropTables");
     }
 
     /**

@@ -11,7 +11,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.kodeholic.itbook.R;
 import com.kodeholic.itbook.common.BookManager;
-import com.kodeholic.itbook.common.MyCacheManager;
+import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.PopupManager;
 import com.kodeholic.itbook.common.data.Book;
@@ -124,7 +124,7 @@ public class SectionNewFragment extends SectionFragment {
             holder.tv_isbn13.setText("(" + item.getIsbn13() + ")");
             holder.tv_price.setText(item.getPrice());
             //이미지를 view에 붙인다.
-            MyCacheManager.getInstance(mContext).loadBitmap(
+            BitmapCacheManager.getInstance(mContext).loadBitmap(
                     item.getImage(),
                     holder.iv_image,
                     TAG);

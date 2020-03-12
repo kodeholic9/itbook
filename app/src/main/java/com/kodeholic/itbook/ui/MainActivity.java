@@ -4,10 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Color;
 import android.os.Bundle;
-import android.text.SpannableString;
-import android.text.style.ForegroundColorSpan;
 import android.view.ContextThemeWrapper;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -24,7 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.kodeholic.itbook.R;
 import com.kodeholic.itbook.common.BookManager;
-import com.kodeholic.itbook.common.MyCacheManager;
+import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.MySettings;
 import com.kodeholic.itbook.lib.util.Log;
@@ -61,7 +58,7 @@ public class MainActivity extends AppCompatActivity implements IBase, View.OnCli
         LocalBroadcastManager.getInstance(mContext).registerReceiver(mControlRecevier, filter);
 
         //CacheManager를 초기화한다.
-        MyCacheManager.getInstance(mContext).startLazyDownloaderTask();
+        BitmapCacheManager.getInstance(mContext).startLazyDownloaderTask();
 
         //BookManager 초기화 작업을 수행한다.
         BookManager.getInstance(mContext).clearSearchResult();
@@ -78,7 +75,7 @@ public class MainActivity extends AppCompatActivity implements IBase, View.OnCli
         hideLoading();
 
         //CacheManager를 해제한다.
-        MyCacheManager.getInstance(mContext).stopLazyDownloaderTask();
+        BitmapCacheManager.getInstance(mContext).stopLazyDownloaderTask();
 
         //LB를 해제한다.
         LocalBroadcastManager.getInstance(mContext).unregisterReceiver(mControlRecevier);

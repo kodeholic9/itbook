@@ -7,6 +7,8 @@ import android.os.Looper;
 import com.kodeholic.itbook.common.data.Book;
 import com.kodeholic.itbook.common.data.BookDetail;
 import com.kodeholic.itbook.common.data.Bookmark;
+import com.kodeholic.itbook.common.data.SearchResult;
+import com.kodeholic.itbook.common.data.SearchResultManager;
 import com.kodeholic.itbook.database.DatabaseHelper;
 import com.kodeholic.itbook.database.TBL_BOOKMARK;
 import com.kodeholic.itbook.database.TBL_HISTORY;
@@ -78,7 +80,6 @@ public class BookManager {
     private Context mContext = null;
     private Handler mHandler = null;
 
-    private DatabaseHelper mHelper = null;
     private TBL_NEW_LIST mTblNewList;
     private TBL_HISTORY  mTblHistory;
     private TBL_BOOKMARK mTblBookmark;
@@ -87,11 +88,10 @@ public class BookManager {
         mContext = context;
         mHandler = new Handler(Looper.getMainLooper());
 
-        //데이타베이스 관련 초기화
-        mHelper = new DatabaseHelper(context);
-        mTblNewList = new TBL_NEW_LIST(mHelper.getWritableDatabase());
-        mTblHistory = new TBL_HISTORY (mHelper.getWritableDatabase());
-        mTblBookmark= new TBL_BOOKMARK(mHelper.getWritableDatabase());
+        //데이타베이스
+        mTblNewList = DatabaseManager.getInstance(mContext).getTblNewList();
+        mTblHistory = DatabaseManager.getInstance(mContext).getTblHistory();
+        mTblBookmark= DatabaseManager.getInstance(mContext).getTblBookmark();
     }
 
     public static BookManager getInstance(Context context) {
@@ -181,15 +181,13 @@ public class BookManager {
 
     /**
      * 서버로 검색 요청을 한다.
-     * @param query
-     * @param page
+     * @param url
      * @param listener
+     * @param f
      * @return
      */
-    public BookApiInvoker search(String query, int page, final Listener listener, String f) {
-        String url = URL_SEARCH + "/" + query + "/" + page;
-
-        Log.d(TAG, "search() - f: " + f + ", query: " + query + ", page: " + page + ", url: " + url);
+    public BookApiInvoker search(String url, final Listener listener, String f) {
+        Log.d(TAG, "search() - f: " + f + ", url: " + url);
 
         BookApiInvoker invoker = new BookApiInvoker(mContext);
         int result = invoker.invoke(GET_SEARCH, url, new HttpListener() {
@@ -214,7 +212,7 @@ public class BookManager {
     public BookApiInvoker detail(String isbn13, final Listener listener, String f) {
         String url = URL_DETAIL + "/" + isbn13;
 
-        Log.d(TAG, "search() - f: " + f + ", isbn13: " + isbn13 + ", url: " + url);
+        Log.d(TAG, "detail() - f: " + f + ", isbn13: " + isbn13 + ", url: " + url);
 
         BookApiInvoker invoker = new BookApiInvoker(mContext);
         int result = invoker.invoke(GET_DETAIL, url, new HttpListener() {
@@ -351,11 +349,16 @@ public class BookManager {
     // Search 기능을 제공한다.
     //
     ///////////////////////////////////////////////////////////////////////////
+    public interface SearchListener {
+        public void onResult(BookListRes result);
+    }
+
     private List<Book> mSearchResult = new ArrayList<>();
     private String     mQueryString;
     private int        mPageNo = 0;
     private int        mSearchTotal = 0;
     private boolean    mSearchRequesting = false;
+
     /**
      * SearchRequesting 갱신한다.
      * @param requesting
@@ -478,15 +481,15 @@ public class BookManager {
      * @param f
      * @return
      */
-    public boolean loadSearch(String query, final Listener listener, String f) {
+    public void loadSearch(String query, final SearchListener listener, String f) {
         Log.d(TAG, "loadSearch() - f: " + f + ", query: " + query);
         synchronized (mSearchResult) {
             if (isSearchRequesting()) {
                 PopupManager.getInstance(mContext).showToast("Already Loading....");
                 if (listener != null) {
-                    listener.onResponse(new HttpResponse(EReason.I_EPROGRESS));
+                    listener.onResult(null);
                 }
-                return false;
+                return ;
             }
             setSearchRequesting(true, "loadSearch");
         }
@@ -503,38 +506,71 @@ public class BookManager {
             clearSearchResult();
         }
 
-        search(getQueryString(), moreToSearch ? mPageNo+1 : mPageNo, new Listener() {
+        //URL을 생성한다.
+        final int page = moreToSearch ? mPageNo+1 : mPageNo;
+        final String url = URL_SEARCH + "/" + getQueryString() + "/" + page;
+
+        //from cache and database
+        BookListRes result = SearchResultManager.getInstance(mContext).getBookListRes(url, "loadSearch");
+        if (result != null) {
+            setSearchRequesting(false, "loadSearch/cache");
+
+            if (moreToSearch) {
+                synchronized (mSearchResult) {
+                    mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
+                }
+            }
+            setSearchResult(
+                    result.getTotal(),    //전체 개수
+                    result.getBookList(), //현 페이지내의 검색 결과
+                    "loadSearch/onResponse");
+            if (listener != null) {
+                listener.onResult(result);
+            }
+            MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch");
+            return;
+        }
+
+        //from server
+        search(url, new Listener() {
             @Override
             public void onResponse(HttpResponse response) {
                 setSearchRequesting(false, "loadSearch/onResponse");
-                if (listener != null) {
-                    listener.onResponse(response);
-                }
+
+                //실패 -----------------------------------------------------
                 if (response.isFAIL()) {
                     PopupManager.getInstance(mContext).showToast("Failed to loadSearch!\n[" + response.toDisplay() + "]");
+                    if (listener != null) {
+                        listener.onResult(null);
+                    }
                     return;
                 }
 
-                //성공!!
-                if (moreToSearch) {
-                    synchronized (mSearchResult) {
-                        mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
-                    }
-                }
-
+                //성공 -----------------------------------------------------
                 final BookListRes jsonRes = (BookListRes)response.getObject();
                 if (jsonRes != null || jsonRes.getError() != 0) {
+                    if (moreToSearch) {
+                        synchronized (mSearchResult) {
+                            mPageNo += 1; //다음을 위해 페이지 번호를 갱신한다.
+                        }
+                    }
+                    if (listener != null) {
+                        listener.onResult(jsonRes);
+                    }
                     setSearchResult(
-                            jsonRes.getTotal(),          //전체 개수
-                            jsonRes.getBookList(),       //현 페이지내의 검색 결과
+                            jsonRes.getTotal(),    //전체 개수
+                            jsonRes.getBookList(), //현 페이지내의 검색 결과
                             "loadSearch/onResponse");
+
+                    //save to cache and database
+                    SearchResultManager.getInstance(mContext).putToCache(url, response.getContents(), "loadSearch");
                 }
 
                 MyIntent.sendMainEvent(mContext, MyIntent.Event.SEARCH_REFRESHED, "loadSearch");
             }
         }, "loadSearch");
 
-        return false;
+        return;
     }
 
     ///////////////////////////////////////////////////////////////////////////

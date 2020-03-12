@@ -19,11 +19,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.kodeholic.itbook.R;
 import com.kodeholic.itbook.common.BookManager;
-import com.kodeholic.itbook.common.MyCacheManager;
+import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.PopupManager;
 import com.kodeholic.itbook.common.data.BookDetail;
-import com.kodeholic.itbook.lib.http.HttpResponse;
 import com.kodeholic.itbook.lib.util.JSUtil;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.IBase;
@@ -199,7 +198,7 @@ public class DetailActivity extends AppCompatActivity implements IBase, View.OnC
         }
 
         //이미지를 view에 붙인다.
-        MyCacheManager.getInstance(mContext).loadBitmap(
+        BitmapCacheManager.getInstance(mContext).loadBitmap(
                 mDetail.getImage(),
                 iv_image,
                 TAG);

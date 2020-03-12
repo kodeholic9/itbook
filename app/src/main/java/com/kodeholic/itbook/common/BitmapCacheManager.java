@@ -12,7 +12,6 @@ import android.util.LruCache;
 import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 import com.jakewharton.disklrucache.DiskLruCache;
 import com.kodeholic.itbook.lib.http.HttpListener;
@@ -31,14 +30,14 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MyCacheManager {
-    public static final String TAG = MyCacheManager.class.getSimpleName();
+public class BitmapCacheManager {
+    public static final String TAG = BitmapCacheManager.class.getSimpleName();
 
     public static final int APP_VERSION = 1;
     public static final int VALUE_COUNT = 1;
     public static final int DISK_CACHE_SIZE = 150 * 1024 * 1024;
 
-    private volatile static MyCacheManager sInstance;
+    private volatile static BitmapCacheManager sInstance;
     private Context mContext = null;
 
     //비트맵 디스크/메모리 캐시
@@ -52,7 +51,7 @@ public class MyCacheManager {
         public void onLoaded(boolean result, boolean asyncFlag, String text);
     }
 
-    private MyCacheManager(Context context) {
+    private BitmapCacheManager(Context context) {
         try {
             //메모리 기반의 비트맵 캐시 생성
             final int memClass = ((ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryClass();
@@ -91,11 +90,11 @@ public class MyCacheManager {
         mJobExecutor.start();
     }
 
-    public static MyCacheManager getInstance(Context context) {
+    public static BitmapCacheManager getInstance(Context context) {
         if (sInstance == null) {
-            synchronized (MyCacheManager.class) {
+            synchronized (BitmapCacheManager.class) {
                 if (sInstance == null) {
-                    sInstance = new MyCacheManager(context);
+                    sInstance = new BitmapCacheManager(context);
                 }
             }
         }
