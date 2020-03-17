@@ -23,8 +23,10 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 	public static final String TITLE      = "_title";
 	public static final String SUBTITLE   = "_subtitle";
 	public static final String AUTHORS    = "_authors";
+	public static final String PUBLISHER  = "_publisher";
 	public static final String LANGUAGE   = "_language";
 	public static final String ISBN10     = "_isbn10";
+	public static final String PAGES      = "_pages";
 	public static final String YEAR       = "_year";
 	public static final String RATING     = "_rating";
 	public static final String DESC       = "_desc";
@@ -39,9 +41,11 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 			ISBN13   + " TEXT NOT NULL UNIQUE PRIMARY KEY," +
 			TITLE    + " TEXT NOT NULL, " +
 			SUBTITLE + " TEXT, " +
+			PUBLISHER+ " TEXT, " +
 			AUTHORS  + " TEXT, " +
 			LANGUAGE + " TEXT, " +
 			ISBN10   + " TEXT, " +
+			PAGES    + " INTEGER, " +
 			YEAR     + " INTEGER, " +
 			RATING   + " INTEGER, " +
 			DESC     + " TEXT, " +
@@ -55,24 +59,26 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 	public static final String DROP = "DROP TABLE IF EXISTS " + TABLE_NAME;
 
 	private static class INDEX {
-		public int ISBN13, TITLE, SUBTITLE, AUTHORS, LANGUAGE, ISBN10, YEAR, RATING, DESC, PRICE, IMAGE, URL, NOTE, CREATE_TIME;
+		public int ISBN13, TITLE, SUBTITLE, AUTHORS, PUBLISHER, LANGUAGE, ISBN10, YEAR, PAGES, RATING, DESC, PRICE, IMAGE, URL, NOTE, CREATE_TIME;
 	}
 
 	private static INDEX cursorToIndex(Cursor c) throws Exception {
 		INDEX idx = new INDEX();
-		idx.ISBN13  = c.getColumnIndex(ISBN13);
-		idx.TITLE   = c.getColumnIndex(TITLE);
-		idx.SUBTITLE= c.getColumnIndex(SUBTITLE);
-		idx.AUTHORS = c.getColumnIndex(AUTHORS);
-		idx.LANGUAGE= c.getColumnIndex(LANGUAGE);
-		idx.ISBN10  = c.getColumnIndex(ISBN10);
-		idx.YEAR    = c.getColumnIndex(YEAR);
-		idx.RATING  = c.getColumnIndex(RATING);
-		idx.DESC    = c.getColumnIndex(DESC);
-		idx.PRICE   = c.getColumnIndex(PRICE);
-		idx.IMAGE   = c.getColumnIndex(IMAGE);
-		idx.URL     = c.getColumnIndex(URL);
-		idx.NOTE    = c.getColumnIndex(NOTE);
+		idx.ISBN13   = c.getColumnIndex(ISBN13);
+		idx.TITLE    = c.getColumnIndex(TITLE);
+		idx.SUBTITLE = c.getColumnIndex(SUBTITLE);
+		idx.AUTHORS  = c.getColumnIndex(AUTHORS);
+		idx.PUBLISHER= c.getColumnIndex(PUBLISHER);
+		idx.LANGUAGE = c.getColumnIndex(LANGUAGE);
+		idx.ISBN10   = c.getColumnIndex(ISBN10);
+		idx.YEAR     = c.getColumnIndex(YEAR);
+		idx.PAGES    = c.getColumnIndex(PAGES);
+		idx.RATING   = c.getColumnIndex(RATING);
+		idx.DESC     = c.getColumnIndex(DESC);
+		idx.PRICE    = c.getColumnIndex(PRICE);
+		idx.IMAGE    = c.getColumnIndex(IMAGE);
+		idx.URL      = c.getColumnIndex(URL);
+		idx.NOTE     = c.getColumnIndex(NOTE);
 		idx.CREATE_TIME = c.getColumnIndex(CREATE_TIME);
 
 		return idx;
@@ -85,19 +91,21 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 	@Override
 	public ContentValues fetchObject2Values(BookDetail o) {
 		ContentValues values = new ContentValues();
-		values.put(ISBN13  , o.getIsbn13());
-		values.put(TITLE   , o.getTitle());
-		values.put(SUBTITLE, o.getSubTitle());
-		values.put(AUTHORS , o.getAuthors());
-		values.put(LANGUAGE, o.getLanguage());
-		values.put(ISBN10  , o.getIsbn10());
-		values.put(YEAR    , o.getYear());
-		values.put(RATING  , o.getRating());
-		values.put(DESC    , o.getDesc());
-		values.put(PRICE   , o.getPrice());
-		values.put(IMAGE   , o.getImage());
-		values.put(URL     , o.getUrl());
-		values.put(NOTE    , o.getNote());
+		values.put(ISBN13   , o.getIsbn13());
+		values.put(TITLE    , o.getTitle());
+		values.put(SUBTITLE , o.getSubTitle());
+		values.put(AUTHORS  , o.getAuthors());
+		values.put(PUBLISHER, o.getPublisher());
+		values.put(LANGUAGE , o.getLanguage());
+		values.put(ISBN10   , o.getIsbn10());
+		values.put(PAGES    , o.getPages());
+		values.put(YEAR     , o.getYear());
+		values.put(RATING   , o.getRating());
+		values.put(DESC     , o.getDesc());
+		values.put(PRICE    , o.getPrice());
+		values.put(IMAGE    , o.getImage());
+		values.put(URL      , o.getUrl());
+		values.put(NOTE     , o.getNote());
 
 		return values;
 	}
@@ -126,15 +134,17 @@ public class TBL_HISTORY extends TABLE<BookDetail> {
 		if (idx.TITLE    != -1) o.setTitle(c.getString(idx.TITLE));
 		if (idx.SUBTITLE != -1) o.setSubTitle(c.getString(idx.SUBTITLE));
 		if (idx.AUTHORS  != -1) o.setAuthors(c.getString(idx.AUTHORS));
+		if (idx.PUBLISHER!= -1) o.setPublisher(c.getString(idx.PUBLISHER));
 		if (idx.LANGUAGE != -1) o.setLanguage(c.getString(idx.LANGUAGE));
 		if (idx.ISBN10   != -1) o.setIsbn10(c.getString(idx.ISBN10));
+		if (idx.PAGES    != -1) o.setPages(c.getInt(idx.PAGES));
 		if (idx.YEAR     != -1) o.setYear(c.getInt(idx.YEAR));
 		if (idx.RATING   != -1) o.setRating(c.getInt(idx.RATING));
 		if (idx.DESC     != -1) o.setDesc(c.getString(idx.DESC));
 		if (idx.PRICE    != -1) o.setPrice(c.getString(idx.PRICE));
 		if (idx.IMAGE    != -1) o.setImage(c.getString(idx.IMAGE));
 		if (idx.URL      != -1) o.setUrl(c.getString(idx.URL));
-		if (idx.NOTE    != -1) o.setNote(c.getString(idx.NOTE));
+		if (idx.NOTE     != -1) o.setNote(c.getString(idx.NOTE));
 
 		return o;
 	}

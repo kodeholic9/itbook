@@ -18,6 +18,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.kodeholic.itbook.R;
 import com.kodeholic.itbook.common.BookManager;
 import com.kodeholic.itbook.common.BitmapCacheManager;
@@ -351,6 +352,9 @@ public class SectionSearchFragment extends SectionFragment {
                     item.getImage(),
                     holder.iv_image,
                     TAG);
+
+            //Glide.with(mContext).load(item.getImage()).thumbnail(0.2f).into(holder.iv_image);
+
             holder.ll_link.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
