@@ -13,7 +13,9 @@ import android.view.View;
 import android.view.animation.AlphaAnimation;
 import android.widget.ImageView;
 
+import com.bumptech.glide.Glide;
 import com.jakewharton.disklrucache.DiskLruCache;
+import com.kodeholic.itbook.R;
 import com.kodeholic.itbook.lib.http.HttpListener;
 import com.kodeholic.itbook.lib.http.HttpResponse;
 import com.kodeholic.itbook.lib.http.HttpUtil;
@@ -94,7 +96,7 @@ public class BitmapCacheManager {
         if (sInstance == null) {
             synchronized (BitmapCacheManager.class) {
                 if (sInstance == null) {
-                    sInstance = new BitmapCacheManager(context);
+                    sInstance = new BitmapCacheManager(context.getApplicationContext());
                 }
             }
         }
@@ -142,6 +144,20 @@ public class BitmapCacheManager {
     }
 
     public void loadBitmap(String imgUrl, final ImageView imageView, String f) {
+        //TODO - how to apply a fade animation
+        AlphaAnimation alphaAnimation = new AlphaAnimation(0, 1);
+        alphaAnimation.setStartOffset(0);
+        alphaAnimation.setDuration(300);
+
+        Glide
+                .with(mContext)
+                .load(imgUrl)
+                .thumbnail(0.1f)
+                .placeholder(R.drawable.ic_launcher_background)
+                .into(imageView);
+    }
+
+    public void _loadBitmap(String imgUrl, final ImageView imageView, String f) {
         Log.d(TAG, "loadBitmap() - f: " + f + ", imgUrl: " + imgUrl + ", imageView: " + imageView);
         try {
             //이미 Task가 실행 중이면서 imgUrl이 다를 경우, 중지시킨다.

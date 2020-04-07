@@ -10,6 +10,8 @@ import com.kodeholic.itbook.common.data.Bookmark;
 import com.kodeholic.itbook.database.TBL_BOOKMARK;
 import com.kodeholic.itbook.database.TBL_HISTORY;
 import com.kodeholic.itbook.database.TBL_NEW_LIST;
+import com.kodeholic.itbook.http.BookClient;
+import com.kodeholic.itbook.http.BookService;
 import com.kodeholic.itbook.lib.util.EReason;
 import com.kodeholic.itbook.lib.util.JSUtil;
 import com.kodeholic.itbook.lib.util.Log;
@@ -22,11 +24,16 @@ import com.kodeholic.itbook.common.data.BookListRes;
 import com.kodeholic.itbook.ui.base.IBase;
 
 import java.net.URLEncoder;
+import java.security.cert.CertPathValidatorException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class BookManager {
     public static final String TAG = BookManager.class.getSimpleName();
@@ -81,6 +88,9 @@ public class BookManager {
     private TBL_HISTORY  mTblHistory;
     private TBL_BOOKMARK mTblBookmark;
 
+    //for retrofit
+    private BookService mBookService;
+
     private BookManager(Context context) {
         mContext = context;
         mHandler = new Handler(Looper.getMainLooper());
@@ -89,6 +99,9 @@ public class BookManager {
         mTblNewList = DatabaseManager.getInstance(mContext).getTblNewList();
         mTblHistory = DatabaseManager.getInstance(mContext).getTblHistory();
         mTblBookmark= DatabaseManager.getInstance(mContext).getTblBookmark();
+
+        //for retrofit
+        mBookService = BookClient.getClient().create(BookService.class);
     }
 
     public static BookManager getInstance(Context context) {
@@ -152,12 +165,32 @@ public class BookManager {
         l.onResponse(new HttpResponse(EReason.I_ERESPONSE));
     }
 
+    private final <T> void checkResponse(boolean failure, Response<T> response, Listener l) {
+        //디버깅..
+        if (failure || response == null) {
+            PopupManager.getInstance(mContext).showToast("An error occurred during server request.\n" + response.message());
+            if (l != null) {
+                l.onResponse(new HttpResponse(EReason.I_EIO));
+            }
+            return;
+        }
+
+        HttpResponse httpResponse = new HttpResponse(EReason.I_EOK, response.code());
+        if (response.isSuccessful()) {
+            httpResponse.setContents(JSUtil.json2String((T) (response.body())));
+            httpResponse.setObject(response.body());
+        }
+        if (l != null) {
+            l.onResponse(httpResponse);
+        }
+    }
+
     /**
      * 서버로 부터 새 목록을 조회한다.
      * @param listener
      * @return
      */
-    public BookApiInvoker newList(final Listener listener, String f) {
+    public BookApiInvoker _newList(final Listener listener, String f) {
         String url = URL_NEW_LIST;
 
         Log.d(TAG, "newList() - f: " + f + ", url: " + url);
@@ -176,6 +209,27 @@ public class BookManager {
         return (result != -1) ? invoker : null;
     }
 
+
+    public BookApiInvoker newList(final Listener listener, String f) {
+        Log.d(TAG, "newList() - f: " + f);
+
+        Call<BookListRes> call = mBookService.getNewList();
+        call.enqueue(new Callback<BookListRes>() {
+            @Override
+            public void onResponse(Call<BookListRes> call, Response<BookListRes> response) {
+                checkResponse(false, response, listener);
+            }
+
+            @Override
+            public void onFailure(Call<BookListRes> call, Throwable t) {
+                call.cancel();
+                checkResponse(true, null, listener);
+            }
+        });
+
+        return null;
+    }
+
     /**
      * 서버로 검색 요청을 한다.
      * @param queryString
@@ -184,7 +238,7 @@ public class BookManager {
      * @param f
      * @return
      */
-    public BookApiInvoker search(String queryString, int pageNo, final Listener listener, String f) {
+    public BookApiInvoker _search(String queryString, int pageNo, final Listener listener, String f) {
         Log.d(TAG, "search() - f: " + f + ", queryString: " + queryString + ", pageNo: " + pageNo);
 
         String url  = URL_SEARCH + "/" + getEncodedString(queryString) + "/" + pageNo;
@@ -203,13 +257,33 @@ public class BookManager {
         return (result != -1) ? invoker : null;
     }
 
+    public BookApiInvoker search(String queryString, int pageNo, final Listener listener, String f) {
+        Log.d(TAG, "search() - f: " + f + ", queryString: " + queryString + ", pageNo: " + pageNo);
+
+        Call<BookListRes> call = mBookService.getSearch(queryString, pageNo);
+        call.enqueue(new Callback<BookListRes>() {
+            @Override
+            public void onResponse(Call<BookListRes> call, Response<BookListRes> response) {
+                checkResponse(false, response, listener);
+            }
+
+            @Override
+            public void onFailure(Call<BookListRes> call, Throwable t) {
+                call.cancel();
+                checkResponse(true, null, listener);
+            }
+        });
+
+        return null;
+    }
+
     /**
      * 서버로 상세 정보를 요청한다.
      * @param isbn13
      * @param listener
      * @return
      */
-    public BookApiInvoker detail(String isbn13, final Listener listener, String f) {
+    public BookApiInvoker _detail(String isbn13, final Listener listener, String f) {
         String url = URL_DETAIL + "/" + isbn13;
 
         Log.d(TAG, "detail() - f: " + f + ", isbn13: " + isbn13 + ", url: " + url);
@@ -226,6 +300,26 @@ public class BookManager {
         checkReason(result != -1 ? EReason.I_EOK : EReason.I_UNKNOWN_ERR, listener);
 
         return (result != -1) ? invoker : null;
+    }
+
+    public BookApiInvoker detail(String isbn13, final Listener listener, String f) {
+        Log.d(TAG, "detail() - f: " + f + ", isbn13: " + isbn13);
+
+        Call<BookDetailRes> call = mBookService.getDetail(isbn13);
+        call.enqueue(new Callback<BookDetailRes>() {
+            @Override
+            public void onResponse(Call<BookDetailRes> call, Response<BookDetailRes> response) {
+                checkResponse(false, response, listener);
+            }
+
+            @Override
+            public void onFailure(Call<BookDetailRes> call, Throwable t) {
+                call.cancel();
+                checkResponse(true, null, listener);
+            }
+        });
+
+        return null;
     }
 
     /**

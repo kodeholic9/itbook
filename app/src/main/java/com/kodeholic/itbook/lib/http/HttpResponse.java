@@ -23,6 +23,10 @@ public class HttpResponse {
 	public HttpResponse(int reason) {
 		this.reason     = reason;
 	}
+    public HttpResponse(int reason, int httpCode) {
+        this.reason     = reason;
+        this.httpCode   = httpCode;
+    }
 	public HttpResponse(int reason, int httpCode, String contents) {
 		this.reason     = reason;
 		this.httpCode   = httpCode;
