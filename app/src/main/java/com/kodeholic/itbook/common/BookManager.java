@@ -168,7 +168,7 @@ public class BookManager {
     private final <T> void checkResponse(boolean failure, Response<T> response, Listener l) {
         //디버깅..
         if (failure || response == null) {
-            PopupManager.getInstance(mContext).showToast("An error occurred during server request.\n" + response.message());
+            PopupManager.getInstance(mContext).showToast("An error occurred during server request.");
             if (l != null) {
                 l.onResponse(new HttpResponse(EReason.I_EIO));
             }
