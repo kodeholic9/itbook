@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.databinding.DataBindingUtil;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -16,6 +17,7 @@ import com.kodeholic.itbook.common.BookManager;
 import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.data.Bookmark;
+import com.kodeholic.itbook.databinding.FragmentBookmarkBinding;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.BookItemViewHolder;
 
@@ -29,11 +31,12 @@ import java.util.List;
 public class SectionBookmarkFragment extends SectionFragment {
     public static final String TAG = SectionBookmarkFragment.class.getSimpleName();
 
+    private FragmentBookmarkBinding mBinding;
     private BookmarkAdapter mAdapter;
     private ItemTouchHelper mTouchHelper;
 
-    private RecyclerView mListView;
-    private TextView     tv_no_result;
+    //private RecyclerView mListView;
+    //private TextView     tv_no_result;
 
     public static SectionBookmarkFragment newInstance(SectionsPagerAdapter.TabInfo info) {
         Log.d(TAG, "newInstance() - " + info.index);
@@ -46,29 +49,31 @@ public class SectionBookmarkFragment extends SectionFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView()");
 
-        View root = inflater.inflate(R.layout.fragment_bookmark, container, false);
+        //View root = inflater.inflate(R.layout.fragment_bookmark, container, false);
 
+        mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_bookmark, container, false);
+        mBinding.setLifecycleOwner(this);
 
         //adapter
         mAdapter = new BookmarkAdapter(new ArrayList<Bookmark>());
 
         //list..
-        mListView = root.findViewById(R.id.ll_list);
+        //mListView = root.findViewById(R.id.ll_list);
         //mListView.setHasFixedSize(true);
-        mListView.setAdapter(mAdapter);
+        mBinding.llList.setAdapter(mAdapter);
 
         //drag..
         ItemTouchHelper.Callback callback = new ItemMoveCallback(mAdapter);
         mTouchHelper = new ItemTouchHelper(callback);
-        mTouchHelper.attachToRecyclerView(mListView);
+        mTouchHelper.attachToRecyclerView(mBinding.llList);
 
         //no result
-        tv_no_result = root.findViewById(R.id.tv_no_result);
+        //tv_no_result = root.findViewById(R.id.tv_no_result);
 
         //view를 갱신한다.
         updateView("onCreateView");
 
-        return root;
+        return mBinding.getRoot();
     }
 
     @Override
@@ -86,19 +91,19 @@ public class SectionBookmarkFragment extends SectionFragment {
     private void updateView(String f) {
         Log.d(TAG, "updateView() - f: " + f);
         final List<Bookmark> results = BookManager.getInstance(mContext).getBookmarkCopies();
-        mListView.post(new Runnable() {
+        mBinding.llList.post(new Runnable() {
             @Override
             public void run() {
                 mAdapter.setData(results);
                 mAdapter.notifyDataSetChanged();
 
                 if (results.size() == 0) {
-                    tv_no_result.setVisibility(View.VISIBLE);
-                    mListView.setVisibility(View.GONE);
+                    mBinding.tvNoResult.setVisibility(View.VISIBLE);
+                    mBinding.llList.setVisibility(View.GONE);
                 }
                 else {
-                    tv_no_result.setVisibility(View.GONE);
-                    mListView.setVisibility(View.VISIBLE);
+                    mBinding.tvNoResult.setVisibility(View.GONE);
+                    mBinding.llList.setVisibility(View.VISIBLE);
                 }
             }
         });

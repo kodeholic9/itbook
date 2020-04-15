@@ -6,6 +6,10 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.databinding.DataBindingUtil;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProvider;
+import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -16,9 +20,12 @@ import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.PopupManager;
 import com.kodeholic.itbook.common.data.Book;
 import com.kodeholic.itbook.common.data.BookDetail;
+import com.kodeholic.itbook.databinding.FragmentNewListBinding;
+import com.kodeholic.itbook.databinding.ListItemBookBinding;
 import com.kodeholic.itbook.lib.http.HttpResponse;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.BookItemViewHolder;
+import com.kodeholic.itbook.ui.viewmodel.BookViewModel;
 
 
 /**
@@ -27,9 +34,10 @@ import com.kodeholic.itbook.ui.base.BookItemViewHolder;
 public class SectionNewFragment extends SectionFragment {
     public static final String TAG = SectionNewFragment.class.getSimpleName();
 
+    private FragmentNewListBinding mBinding;
+    private BookViewModel mBookViewModel;
+
     private NewListAdapter mAdapter;
-    private RecyclerView   mListView;
-    private SwipeRefreshLayout mPullToRefresh;
 
     public static SectionNewFragment newInstance(SectionsPagerAdapter.TabInfo info) {
         Log.d(TAG, "newInstance() - " + info.index);
@@ -42,59 +50,56 @@ public class SectionNewFragment extends SectionFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView()");
 
-        View root = inflater.inflate(R.layout.fragment_new_list, container, false);
+        //ViewModel
+        mBookViewModel = ViewModelProviders.of(this).get(BookViewModel.class);
+        mBookViewModel.getBookList().observe(this, new Observer<Book[]>() {
+            @Override
+            public void onChanged(Book[] books) {
+                updateView(books,"observe()");
+            }
+        });
+
+        //databinding
+        mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_new_list, container, false);
+        mBinding.setLifecycleOwner(this);
 
         //adapter
         mAdapter = new NewListAdapter(BookManager.getInstance(mContext).getNewResultToArray());
 
         //list..
-        mListView = root.findViewById(R.id.ll_list);
-        mListView.setHasFixedSize(true);
-        mListView.setAdapter(mAdapter);
+        //mListView = mBinding.llList; //root.findViewById(R.id.ll_list);
+        mBinding.llList.setHasFixedSize(true);
+        mBinding.llList.setAdapter(mAdapter);
 
-        mPullToRefresh = root.findViewById(R.id.ll_refresh);
-        mPullToRefresh.setOnRefreshListener(mRefreshListener);
-        mPullToRefresh.setColorSchemeResources(R.color.colorPrimary,
+        //mPullToRefresh = mBinding.llRefresh; //root.findViewById(R.id.ll_refresh);
+        mBinding.llRefresh.setOnRefreshListener(mRefreshListener);
+        mBinding.llRefresh.setColorSchemeResources(R.color.colorPrimary,
                 android.R.color.holo_green_dark,
                 android.R.color.holo_orange_dark,
                 android.R.color.holo_blue_dark);
 
-        return root;
+        return mBinding.getRoot();
     }
 
-    private void updateView(String f) {
+    private void updateView(Book[] books, String f) {
         Log.d(TAG, "updateView() - f: " + f);
-        mListView.post(new Runnable() {
-            @Override
-            public void run() {
-                mAdapter.setData(BookManager.getInstance(mContext).getNewResultToArray());
-                mAdapter.notifyDataSetChanged();
-            }
-        });
+        mAdapter.setData(books);
+        mAdapter.notifyDataSetChanged();
+
+        if (mBinding.llRefresh.isRefreshing()) {
+            mBinding.llRefresh.setRefreshing(false);
+        }
     }
 
     @Override
     public void onEvent(int event, Object o) {
         Log.d(TAG, "onEvent() - event: " + event);
-        if (event == MyIntent.Event.NEW_LIST_REFRESHED) {
-            updateView("NEW_LIST_REFRESHED");
-        }
     }
 
     private SwipeRefreshLayout.OnRefreshListener mRefreshListener = new SwipeRefreshLayout.OnRefreshListener() {
         @Override
         public void onRefresh() {
-            BookManager.getInstance(mContext).loadNewList(new BookManager.Listener() {
-                @Override
-                public void onResponse(HttpResponse response) {
-                    mPullToRefresh.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            mPullToRefresh.setRefreshing(false);
-                        }
-                    });
-                }
-            }, "onRefresh");
+            mBookViewModel.loadNewList(mContext);
         }
     };
 
@@ -105,38 +110,31 @@ public class SectionNewFragment extends SectionFragment {
         public NewListAdapter(Book[] data) {
             this.data = data;
         }
-
         public void setData(Book[] data) {
             this.data = data;
         }
 
         @Override
         public BookItemViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.list_item_book, parent, false);
-            return new BookItemViewHolder(itemView);
+            ListItemBookBinding binding = DataBindingUtil.inflate(
+                LayoutInflater.from(parent.getContext()), R.layout.list_item_book, parent, false
+            );
+            return new BookItemViewHolder(binding);
         }
 
         @Override
         public void onBindViewHolder(final BookItemViewHolder holder, final int position) {
             final Book item = data[position];
-            holder.tv_title.setText(item.getTitle());
-            holder.tv_subtitle.setText(item.getSubTitle());
-            holder.tv_isbn13.setText("(" + item.getIsbn13() + ")");
-            holder.tv_price.setText(item.getPrice());
-            //이미지를 view에 붙인다.
-            BitmapCacheManager.getInstance(mContext).loadBitmap(
-                    item.getImage(),
-                    holder.iv_image,
-                    TAG);
 
-            holder.ll_link.setOnClickListener(new View.OnClickListener() {
+            holder.binding.setBook(item);
+            holder.binding.llLink.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     Log.d(TAG, "onClick() - view: " + v + ", position: " + position + ", " + item);
                     MyIntent.goToURL(mContext, item.getUrl());
                 }
             });
-            holder.rowView.setOnClickListener(new View.OnClickListener() {
+            holder.binding.getRoot().setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     Log.d(TAG, "onClick() - view: " + v + ", position: " + position + ", " + item);

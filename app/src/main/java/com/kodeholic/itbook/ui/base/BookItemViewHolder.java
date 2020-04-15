@@ -7,6 +7,7 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.kodeholic.itbook.R;
+import com.kodeholic.itbook.databinding.ListItemBookBinding;
 
 public class BookItemViewHolder extends RecyclerView.ViewHolder {
     public ImageView iv_image;
@@ -16,6 +17,8 @@ public class BookItemViewHolder extends RecyclerView.ViewHolder {
     public TextView  tv_price;
     public View      ll_link;
     public View      rowView;
+
+    public ListItemBookBinding binding;
 
     public BookItemViewHolder(View itemView) {
         super(itemView);
@@ -27,5 +30,10 @@ public class BookItemViewHolder extends RecyclerView.ViewHolder {
         tv_isbn13   = itemView.findViewById(R.id.tv_isbn13);
         tv_price    = itemView.findViewById(R.id.tv_price);
         ll_link     = itemView.findViewById(R.id.ll_link);
+    }
+
+    public BookItemViewHolder(ListItemBookBinding binding) {
+        super(binding.getRoot());
+        this.binding = binding;
     }
 }

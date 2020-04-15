@@ -15,6 +15,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.databinding.DataBindingUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -28,6 +29,8 @@ import com.kodeholic.itbook.common.Utils;
 import com.kodeholic.itbook.common.data.Book;
 import com.kodeholic.itbook.common.data.BookDetail;
 import com.kodeholic.itbook.common.data.BookListRes;
+import com.kodeholic.itbook.databinding.FragmentNewListBinding;
+import com.kodeholic.itbook.databinding.FragmentSearchBinding;
 import com.kodeholic.itbook.lib.http.HttpResponse;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.BookItemViewHolder;
@@ -41,11 +44,13 @@ import java.util.regex.Pattern;
 public class SectionSearchFragment extends SectionFragment {
     public static final String TAG = SectionSearchFragment.class.getSimpleName();
 
+    private FragmentSearchBinding mBinding;
+
     private SearchAdapter mAdapter;
-    private RecyclerView  mListView;
+    //private RecyclerView  mListView;
     private LinearLayoutManager mLM;
-    private EditText      ed_input;
-    private TextView      tv_no_result;
+    //private EditText      ed_input;
+    //private TextView      tv_no_result;
 
     public static SectionSearchFragment newInstance(SectionsPagerAdapter.TabInfo info) {
         Log.d(TAG, "newInstance() - " + info.index);
@@ -58,15 +63,17 @@ public class SectionSearchFragment extends SectionFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView()");
 
-        View root = inflater.inflate(R.layout.fragment_search, container, false);
+        //View root = inflater.inflate(R.layout.fragment_search, container, false);
+        mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_search, container, false);
+        mBinding.setLifecycleOwner(this);
 
         //adapter
         mAdapter = new SearchAdapter(BookManager.getInstance(mContext).toSearchResultToArray());
 
         //list..
-        mListView = root.findViewById(R.id.ll_list);
-        mListView.setAdapter(mAdapter);
-        mListView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        //mListView = root.findViewById(R.id.ll_list);
+        mBinding.llList.setAdapter(mAdapter);
+        mBinding.llList.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
@@ -99,15 +106,15 @@ public class SectionSearchFragment extends SectionFragment {
                 return;
             }
         });
-        mLM = (LinearLayoutManager) mListView.getLayoutManager();
+        mLM = (LinearLayoutManager) mBinding.llList.getLayoutManager();
 
         //no result
-        tv_no_result = root.findViewById(R.id.tv_no_result);
+        //tv_no_result = root.findViewById(R.id.tv_no_result);
 
         //edit text
-        ed_input = root.findViewById(R.id.ed_input);
-        ed_input.setFilters(new InputFilter[]{ filterAlphaNum });
-        ed_input.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+        //ed_input = root.findViewById(R.id.ed_input);
+        mBinding.edInput.setFilters(new InputFilter[]{ filterAlphaNum });
+        mBinding.edInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
                 Log.d(TAG, "onEditorAction() - actionId: " + actionId);
@@ -120,7 +127,7 @@ public class SectionSearchFragment extends SectionFragment {
 
         updateView(false, "onCreateView");
 
-        return root;
+        return mBinding.getRoot();
     }
 
     /**
@@ -158,9 +165,9 @@ public class SectionSearchFragment extends SectionFragment {
      * @param f
      */
     private void hideSoftInput(String f) {
-        if (ed_input.hasFocus()) {
-            Utils.hideSoftInput(mContext, ed_input, f);
-            ed_input.clearFocus();
+        if (mBinding.edInput.hasFocus()) {
+            Utils.hideSoftInput(mContext, mBinding.edInput, f);
+            mBinding.edInput.clearFocus();
         }
     }
 
@@ -178,19 +185,19 @@ public class SectionSearchFragment extends SectionFragment {
         try {
             Book[] results = BookManager.getInstance(mContext).toSearchResultToArray();
             Log.d(TAG, "updateView() - results.length: " + results.length
-                    + ", tv_no_result: " + tv_no_result
+                    + ", tv_no_result: " + mBinding.tvNoResult
             );
 
             //조회 결과 없음
             if (results.length == 0) {
-                tv_no_result.setVisibility(View.VISIBLE);
-                mListView.setVisibility(View.GONE);
+                mBinding.tvNoResult.setVisibility(View.VISIBLE);
+                mBinding.llList.setVisibility(View.GONE);
                 return;
             }
 
             //조회 결과 있음
-            tv_no_result.setVisibility(View.GONE);
-            mListView.setVisibility(View.VISIBLE);
+            mBinding.tvNoResult.setVisibility(View.GONE);
+            mBinding.llList.setVisibility(View.VISIBLE);
 
             //리스트를 갱신한다.
             if (results != null) {
@@ -216,7 +223,7 @@ public class SectionSearchFragment extends SectionFragment {
      */
     private void loadSearch(final boolean initFlag, String f) {
         Log.d(TAG, "loadSearch() - f: " + f + ", initFlag: " + initFlag);
-        String s = ed_input.getText().toString();
+        String s = mBinding.edInput.getText().toString();
         boolean isEquals = BookManager.getInstance(mContext).equalsQueryString(s);
         if (initFlag) {
             if (TextUtils.isEmpty(s)) {

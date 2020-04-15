@@ -7,6 +7,8 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.databinding.DataBindingUtil;
+import androidx.databinding.ViewDataBinding;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.kodeholic.itbook.R;
@@ -14,6 +16,7 @@ import com.kodeholic.itbook.common.BookManager;
 import com.kodeholic.itbook.common.BitmapCacheManager;
 import com.kodeholic.itbook.common.MyIntent;
 import com.kodeholic.itbook.common.data.BookDetail;
+import com.kodeholic.itbook.databinding.FragmentHistoryBinding;
 import com.kodeholic.itbook.lib.util.Log;
 import com.kodeholic.itbook.ui.base.BookItemViewHolder;
 
@@ -23,9 +26,10 @@ import com.kodeholic.itbook.ui.base.BookItemViewHolder;
 public class SectionHistoryFragment extends SectionFragment {
     public static final String TAG = SectionHistoryFragment.class.getSimpleName();
 
+    private FragmentHistoryBinding mBinding;
     private HistoryAdapter mAdapter;
-    private RecyclerView   mListView;
-    private TextView       tv_no_result;
+    //private RecyclerView   mListView;
+    //private TextView       tv_no_result;
 
     public static SectionHistoryFragment newInstance(SectionsPagerAdapter.TabInfo info) {
         Log.d(TAG, "newInstance() - " + info.index);
@@ -38,18 +42,21 @@ public class SectionHistoryFragment extends SectionFragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView()");
 
-        View root = inflater.inflate(R.layout.fragment_history, container, false);
+        //View root = inflater.inflate(R.layout.fragment_history, container, false);
+
+        mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_history, container, false);
+        mBinding.setLifecycleOwner(this);
 
         //adapter
         mAdapter = new HistoryAdapter(new BookDetail[0]);
 
         //list..
-        mListView = root.findViewById(R.id.ll_list);
-        mListView.setHasFixedSize(true);
-        mListView.setAdapter(mAdapter);
+        //mListView = root.findViewById(R.id.ll_list);
+        mBinding.llList.setHasFixedSize(true);
+        mBinding.llList.setAdapter(mAdapter);
 
         //no result
-        tv_no_result = root.findViewById(R.id.tv_no_result);
+        //tv_no_result = root.findViewById(R.id.tv_no_result);
 
         //view를 갱신한다.
         showLoading("onCreateView");
@@ -61,7 +68,7 @@ public class SectionHistoryFragment extends SectionFragment {
             }
         });
 
-        return root;
+        return mBinding.getRoot();
     }
 
     @Override
@@ -96,19 +103,19 @@ public class SectionHistoryFragment extends SectionFragment {
      */
     private void updateView(final BookDetail[] results, String f) {
         Log.d(TAG, "updateView() - f: " + f);
-        mListView.post(new Runnable() {
+        mBinding.llList.post(new Runnable() {
             @Override
             public void run() {
                 mAdapter.setData(results);
                 mAdapter.notifyDataSetChanged();
 
                 if (results.length == 0) {
-                    tv_no_result.setVisibility(View.VISIBLE);
-                    mListView.setVisibility(View.GONE);
+                    mBinding.tvNoResult.setVisibility(View.VISIBLE);
+                    mBinding.llList.setVisibility(View.GONE);
                 }
                 else {
-                    tv_no_result.setVisibility(View.GONE);
-                    mListView.setVisibility(View.VISIBLE);
+                    mBinding.tvNoResult.setVisibility(View.GONE);
+                    mBinding.llList.setVisibility(View.VISIBLE);
                 }
             }
         });
