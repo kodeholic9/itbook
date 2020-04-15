@@ -131,39 +131,14 @@ public class SectionNewFragment extends SectionFragment {
                 @Override
                 public void onClick(View v) {
                     Log.d(TAG, "onClick() - view: " + v + ", position: " + position + ", " + item);
-                    MyIntent.goToURL(mContext, item.getUrl());
+                    mBookViewModel.goToUrl(mContext, item.getUrl());
                 }
             });
             holder.binding.getRoot().setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     Log.d(TAG, "onClick() - view: " + v + ", position: " + position + ", " + item);
-
-                    //반복 호출되는 상황 예외처리...
-                    synchronized (this) {
-                        if (detailStarting) {
-                            Log.d(TAG, "already detailStarting!!");
-                            return;
-                        }
-                        detailStarting = true;
-                    }
-
-                    //detail 조회후, 화면으로 이동한다.
-                    showLoading("onClick");
-                    BookManager.getInstance(mContext).loadDetail(item.getIsbn13(), new BookManager.DetailListener() {
-                        @Override
-                        public void onResult(BookDetail result) {
-                            hideLoading("onClick");
-                            synchronized (this) {
-                                detailStarting = false;
-                            }
-                            if (result == null) {
-                                PopupManager.getInstance(mContext).showToast("Failed to load detail!");
-                                return;
-                            }
-                            MyIntent.startDetailActivity(mContext, MyIntent.Event.DETAIL_REFRESHED, result.getIsbn13(), TAG);
-                        }
-                    }, TAG);
+                    mBookViewModel.loadAndGoDetail(mContext, item);
                 }
             });
         }
